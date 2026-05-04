@@ -1,0 +1,132 @@
+# ============================================
+# WibuDungeon - Wave Definitions
+# v1.0.6: Added bundle and chest_amount fields per wave
+# ============================================
+# Mob types support:
+#   - Vanilla mobs: ZOMBIE, SKELETON, SPIDER, etc.
+#   - MythicMobs: Use "mm:MobInternalName" prefix
+#     Example: "mm:SkeletonKing", "mm:FireGolem"
+#
+# Bundle (v1.0.6): Reference a reward bundle from rewards.yml
+#   bundle: bundle_common
+#   chest_amount: 3
+
+wave-sets:
+  default:
+    waves:
+      1:
+        mobs:
+          ZOMBIE: 5
+          SKELETON: 3
+        scaling:
+          health-multiplier: 1.0
+          damage-multiplier: 1.0
+          speed-multiplier: 1.0
+        time-limit: 120
+        bundle: bundle_common
+        chest_amount: 2
+      2:
+        mobs:
+          ZOMBIE: 8
+          SKELETON: 5
+          SPIDER: 3
+        scaling:
+          health-multiplier: 1.2
+          damage-multiplier: 1.1
+          speed-multiplier: 1.0
+        time-limit: 120
+        bundle: bundle_uncommon
+        chest_amount: 2
+      3:
+        mobs:
+          ZOMBIE: 10
+          SKELETON: 7
+          SPIDER: 5
+          CREEPER: 2
+        scaling:
+          health-multiplier: 1.5
+          damage-multiplier: 1.3
+          speed-multiplier: 1.1
+        time-limit: 150
+        bundle: bundle_rare
+        chest_amount: 3
+      4:
+        mobs:
+          ZOMBIE: 12
+          SKELETON: 8
+          SPIDER: 6
+          WITCH: 3
+        scaling:
+          health-multiplier: 1.8
+          damage-multiplier: 1.5
+          speed-multiplier: 1.2
+        time-limit: 150
+        bundle: bundle_epic
+        chest_amount: 3
+      5:
+        boss: true
+        boss-type: WITHER_SKELETON
+        boss-name: "&4&lDungeon Guardian"
+        boss-health: 200
+        boss-effects:
+          SPEED: 1
+          STRENGTH: 1
+          FIRE_RESISTANCE: 0
+        mobs:
+          ZOMBIE: 5
+          SKELETON: 5
+        scaling:
+          health-multiplier: 2.0
+          damage-multiplier: 1.8
+          speed-multiplier: 1.3
+        time-limit: 300
+        bundle: bundle_legendary
+        chest_amount: 5
+
+  # Example wave set using MythicMobs
+  mythic_example:
+    waves:
+      1:
+        mobs:
+          # Mix vanilla and MythicMobs
+          ZOMBIE: 3
+          "mm:SkeletonWarrior": 2
+          "mm:UndeadArcher": 2
+        scaling:
+          health-multiplier: 1.0
+          damage-multiplier: 1.0
+          speed-multiplier: 1.0
+        time-limit: 120
+        bundle: bundle_common
+        chest_amount: 2
+      2:
+        mobs:
+          "mm:SkeletonWarrior": 5
+          "mm:UndeadArcher": 3
+          "mm:DarkMage": 2
+        scaling:
+          health-multiplier: 1.3
+          damage-multiplier: 1.2
+          speed-multiplier: 1.1
+        time-limit: 150
+        bundle: bundle_rare
+        chest_amount: 3
+      3:
+        boss: true
+        # MythicMobs boss - use mm: prefix
+        boss-type: "mm:SkeletonKing"
+        boss-name: "&4&l☠ Skeleton King ☠"
+        boss-health: 500
+        boss-effects:
+          SPEED: 1
+          STRENGTH: 2
+        mobs:
+          "mm:SkeletonWarrior": 4
+          "mm:UndeadArcher": 4
+        scaling:
+          health-multiplier: 1.5
+          damage-multiplier: 1.5
+          speed-multiplier: 1.2
+        time-limit: 300
+        bundle: bundle_legendary
+        chest_amount: 5

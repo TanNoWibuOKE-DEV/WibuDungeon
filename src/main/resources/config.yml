@@ -1,0 +1,60 @@
+# ============================================
+# WibuDungeon - Main Configuration
+# ============================================
+
+prefix: "&8[&6WibuDungeon&8] &r"
+
+# Portal Settings
+portal:
+  # Worlds where portals can spawn
+  worlds:
+    - world
+  # Spawn interval in seconds
+  spawn-interval: 300
+  # How long a portal stays before disappearing (seconds)
+  duration: 120
+  # Minimum distance from world spawn
+  min-distance-from-spawn: 50
+  # Maximum distance from world spawn
+  max-distance-from-spawn: 500
+  # Portal block type for display entity
+  display-block: NETHER_PORTAL
+  # Maximum active portals at once
+  max-active: 3
+  # Announce portal spawn to all players
+  announce: true
+
+# Dungeon Settings
+dungeon:
+  # Maximum time for a dungeon run (seconds)
+  max-time: 600
+  # Countdown between waves (seconds) - shows title/actionbar
+  wave-interval: 10
+  # Countdown before dungeon starts (seconds)
+  start-countdown: 5
+  # Allow players to rejoin after disconnect
+  allow-rejoin: true
+  # Reward chest drop height (blocks above ground)
+  reward-chest-drop-height: 10
+  # Apply glowing effect to dungeon mobs
+  mob-glow: true
+  # Custom name format for dungeon mobs
+  mob-name-format: "&c[Wave %wave%] &f%mob%"
+
+# Party Settings
+party:
+  # Maximum party size
+  max-size: 4
+  # Invite timeout (seconds)
+  invite-timeout: 60
+  # Allow solo dungeon entry
+  allow-solo: true
+
+# Death Settings
+death:
+  # Mode when player dies (SPECTATOR)
+  mode: SPECTATOR
+  # Restore inventory on dungeon end
+  restore-inventory: true
+  # Keep exp on death in dungeon
+  keep-exp: true

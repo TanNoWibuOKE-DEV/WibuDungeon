@@ -1,0 +1,25 @@
+name: WibuDungeon
+version: '${project.version}'
+main: com.wibudungeon.core.WibuDungeon
+api-version: '1.21'
+description: Professional dungeon system with portals, waves, parties, MythicMobs integration, and rewards
+author: WibuDev
+softdepend: [MythicMobs]
+
+commands:
+  wd:
+    description: WibuDungeon main command
+    usage: /<command> <args>
+    aliases: [wibudungeon, wdungeon]
+
+permissions:
+  wibudungeon.admin:
+    description: Access to all WibuDungeon admin commands
+    default: op
+  wibudungeon.use:
+    description: Access to use dungeons
+    default: true
+  wibudungeon.party:
+    description: Access to party commands
+    default: true
+

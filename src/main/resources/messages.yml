@@ -1,0 +1,92 @@
+# ============================================
+# WibuDungeon - Messages Configuration
+# v1.0.6: Added setup region, GPS tracking, and bundle messages
+# ============================================
+# Supports & color codes and MiniMessage format
+
+prefix: "&8[&6WibuDungeon&8] &r"
+
+general:
+  no-permission: "&cYou don't have permission to do this!"
+  player-only: "&cThis command can only be used by players!"
+  reload: "&aConfiguration reloaded successfully!"
+  unknown-command: "&cUnknown command. Use &e/wd help &cfor help."
+
+portal:
+  spawned: "&aA dungeon portal has spawned! Find it and enter!"
+  spawned-coords: "&ePortal location: &f%x%, %y%, %z% &ein &f%world%"
+  expired: "&cA dungeon portal has expired."
+  entered: "&aYou have entered a dungeon portal!"
+
+party:
+  created: "&aParty created! Invite players with &e/wd party invite <player>"
+  disbanded: "&cYour party has been disbanded."
+  invited: "&aYou invited &e%player% &ato your party."
+  received-invite: "&e%player% &ahas invited you to their party! Click to accept."
+  joined: "&e%player% &ahas joined the party."
+  left: "&e%player% &chas left the party."
+  kicked: "&cYou have been kicked from the party."
+  full: "&cThe party is full!"
+  already-in-party: "&cYou are already in a party!"
+  not-in-party: "&cYou are not in a party!"
+  not-owner: "&cOnly the party owner can do this!"
+  invite-expired: "&cThe party invite has expired."
+  invite-accepted: "&aYou accepted the party invite."
+  invite-denied: "&cYou denied the party invite."
+  player-not-found: "&cPlayer not found!"
+
+dungeon:
+  starting: "&a&lDungeon starting in &e%seconds% &a&lseconds..."
+  started: "&a&lDungeon has started! Good luck!"
+  wave-start: "&e&lWave %wave% &ehas started!"
+  wave-complete: "&a&lWave %wave% &acompleted!"
+  boss-spawn: "&c&l⚠ BOSS SPAWNED! ⚠"
+  completed: "&a&l★ DUNGEON COMPLETED! ★"
+  failed: "&c&lDungeon failed! Time ran out!"
+  player-died: "&c%player% has fallen!"
+  all-dead: "&c&lAll players have been defeated! Dungeon failed!"
+  teleported-out: "&aYou have been teleported out of the dungeon."
+  wave-countdown: "&e&lNext Wave In: &c&l%seconds%s"
+  wave-countdown-sub: "&7Prepare for the next wave..."
+  reward-chest-drop: "&6&l★ A reward chest is falling from the sky! ★"
+  not-found: "&cDungeon not found!"
+  already-in-dungeon: "&cYou are already in a dungeon!"
+  max-instances: "&cThis dungeon has reached its maximum instances!"
+
+admin:
+  wand-given: "&aWibuDungeon wand given!"
+  pos1-set: "&aPosition 1 set at &e%x%, %y%, %z%"
+  pos2-set: "&aPosition 2 set at &e%x%, %y%, %z%"
+  spawn-set: "&aSpawn point set at &e%x%, %y%, %z%"
+  mob-spawn-added: "&aMob spawn location added at &e%x%, %y%, %z%"
+  chest-added: "&aChest location added at &e%x%, %y%, %z%"
+  dungeon-saved: "&aDungeon &e%id% &asaved successfully!"
+  dungeon-deleted: "&cDungeon &e%id% &cdeleted."
+  no-pos1: "&cPlease set position 1 first!"
+  no-pos2: "&cPlease set position 2 first!"
+  no-spawn: "&cPlease set the spawn point first!"
+
+reward:
+  received: "&aYou received rewards for Wave &e%wave%&a!"
+  completion: "&a&l★ You received dungeon completion rewards! ★"
+  money: "&aYou received &e$%amount%&a!"
+  chest-looted: "&a&l★ Reward chest fully looted! ★"
+
+bossbar:
+  wave: "&e&lWave %wave%/%max_wave% &8| &c%mobs_left% mobs remaining"
+  boss: "&4&l⚔ BOSS FIGHT ⚔ &8| &c%boss_health%❤"
+  timer: "&f⏱ Time: &e%time%"
+
+# v1.0.6 — New messages
+setup:
+  outside-region: "&c⚠ This location is outside the dungeon region!"
+  region-not-defined: "&7⚠ Region not yet defined. Set pos1 and pos2 first."
+  bundle-selected: "&aSet bundle &e%bundle% &afor wave %wave%"
+  bundle-removed: "&7Bundle removed from wave %wave%"
+
+tracking:
+  started: "&a⏳ GPS Tracker activated! Follow the guide."
+  stopped: "&ePortal tracking stopped."
+  arrived: "&a&l✔ You've reached the dungeon portal!"
+  portal-gone: "&cThe tracked portal has disappeared!"
+  different-world: "&cPortal is in a different world!"

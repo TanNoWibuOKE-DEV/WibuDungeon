@@ -1,0 +1,163 @@
+# ============================================
+# WibuDungeon - Reward Definitions
+# v1.0.6: Added bundles section for reward bundle system
+# ============================================
+
+# ===== REWARD BUNDLES (v1.0.6) =====
+# Named collections of items with drop chances.
+# Assigned to waves via Wave Manager GUI or waves.yml.
+bundles:
+  bundle_common:
+    items:
+      iron_ingot:
+        material: IRON_INGOT
+        amount: 5
+        chance: 0.8
+        name: "&7Iron Ingot"
+      bread:
+        material: BREAD
+        amount: 3
+        chance: 0.9
+      golden_apple:
+        material: GOLDEN_APPLE
+        amount: 1
+        chance: 0.4
+        name: "&6Golden Apple"
+
+  bundle_uncommon:
+    items:
+      iron_ingot:
+        material: IRON_INGOT
+        amount: 8
+        chance: 0.9
+      gold_ingot:
+        material: GOLD_INGOT
+        amount: 3
+        chance: 0.6
+        name: "&eGold Ingot"
+      golden_apple:
+        material: GOLDEN_APPLE
+        amount: 2
+        chance: 0.5
+        name: "&6Golden Apple"
+
+  bundle_rare:
+    items:
+      diamond:
+        material: DIAMOND
+        amount: 3
+        chance: 0.7
+        name: "&bDiamond"
+      golden_apple:
+        material: GOLDEN_APPLE
+        amount: 3
+        chance: 0.6
+      emerald:
+        material: EMERALD
+        amount: 5
+        chance: 0.5
+        name: "&aEmerald"
+
+  bundle_epic:
+    items:
+      diamond:
+        material: DIAMOND
+        amount: 5
+        chance: 0.8
+        name: "&bDiamond"
+      enchanted_golden_apple:
+        material: ENCHANTED_GOLDEN_APPLE
+        amount: 1
+        chance: 0.4
+        name: "&6&lEnchanted Apple"
+      netherite_scrap:
+        material: NETHERITE_SCRAP
+        amount: 1
+        chance: 0.3
+        name: "&4Netherite Scrap"
+
+  bundle_legendary:
+    items:
+      netherite_ingot:
+        material: NETHERITE_INGOT
+        amount: 1
+        chance: 0.5
+        name: "&4&lNetherite Ingot"
+      diamond:
+        material: DIAMOND
+        amount: 10
+        chance: 0.9
+      enchanted_golden_apple:
+        material: ENCHANTED_GOLDEN_APPLE
+        amount: 2
+        chance: 0.6
+      nether_star:
+        material: NETHER_STAR
+        amount: 1
+        chance: 0.2
+        name: "&e&lDungeon Star"
+
+# ===== LEGACY REWARD SETS (backward compatible) =====
+reward-sets:
+  default:
+    wave-rewards:
+      1:
+        items:
+          - material: IRON_INGOT
+            amount: 5
+            name: "&7Iron Ingot"
+          - material: GOLDEN_APPLE
+            amount: 1
+            name: "&6Golden Apple"
+        commands: []
+        money: 100
+      2:
+        items:
+          - material: IRON_INGOT
+            amount: 8
+          - material: GOLDEN_APPLE
+            amount: 2
+            name: "&6Golden Apple"
+        commands: []
+        money: 200
+      3:
+        items:
+          - material: DIAMOND
+            amount: 3
+            name: "&bDiamond"
+          - material: GOLDEN_APPLE
+            amount: 3
+        commands: []
+        money: 350
+      4:
+        items:
+          - material: DIAMOND
+            amount: 5
+            name: "&bDiamond"
+          - material: ENCHANTED_GOLDEN_APPLE
+            amount: 1
+        commands: []
+        money: 500
+      5:
+        items:
+          - material: NETHERITE_INGOT
+            amount: 1
+            name: "&4Netherite Ingot"
+          - material: DIAMOND
+            amount: 10
+          - material: ENCHANTED_GOLDEN_APPLE
+            amount: 2
+        commands:
+          - "say %player% has defeated the Dungeon Guardian!"
+        money: 1000
+    completion:
+      items:
+        - material: NETHER_STAR
+          amount: 1
+          name: "&e&lDungeon Star"
+          lore:
+            - "&7A trophy from the dungeons"
+            - "&7Proof of your strength"
+      commands:
+        - "say %player% has completed the dungeon!"
+      money: 500

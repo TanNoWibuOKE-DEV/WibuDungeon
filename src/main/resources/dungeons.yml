@@ -1,0 +1,25 @@
+# ============================================
+# WibuDungeon - Dungeon Definitions
+# ============================================
+# Each dungeon has a unique ID and configuration
+
+dungeons:
+  example_dungeon:
+    name: "&c&lFire Dungeon"
+    enabled: true
+    world: world
+    pos1: "world,100,60,100,0,0"
+    pos2: "world,150,80,150,0,0"
+    spawn-point: "world,125,65,125,0,0"
+    mob-spawns:
+      - "world,110,65,110,0,0"
+      - "world,120,65,120,0,0"
+      - "world,130,65,130,0,0"
+      - "world,140,65,140,0,0"
+    chest-locations:
+      - "world,125,65,140,0,0"
+    wave-set: default
+    reward-set: default
+    max-instances: 3
+    min-players: 1
+    max-players: 4
