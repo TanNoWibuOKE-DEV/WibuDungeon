@@ -54,11 +54,20 @@ public class DungeonManager {
     public boolean startDungeon(String dungeonId, Player starter) {
         Dungeon dungeon = configManager.getDungeon(dungeonId);
         if (dungeon == null) {
+            plugin.getLogger().warning("[Join Debug] Dungeon '" + dungeonId + "' not found in config!");
             MessageUtil.send(starter, configManager.getMessage("dungeon.not-found"));
             return false;
         }
 
-        if (!dungeon.isEnabled() || !dungeon.isValid()) {
+        if (!dungeon.isEnabled()) {
+            plugin.getLogger().warning("[Join Debug] Dungeon '" + dungeonId + "' is disabled!");
+            MessageUtil.send(starter, configManager.getMessage("dungeon.not-found"));
+            return false;
+        }
+
+        if (!dungeon.isValid()) {
+            plugin.getLogger().warning("[Join Debug] Dungeon '" + dungeonId + "' is invalid! pos1=" + dungeon.getPos1()
+                    + " pos2=" + dungeon.getPos2() + " spawn=" + dungeon.getSpawnPoint() + " world=" + dungeon.getWorld());
             MessageUtil.send(starter, configManager.getMessage("dungeon.not-found"));
             return false;
         }
@@ -86,6 +95,16 @@ public class DungeonManager {
                 return false;
             }
             members.add(starter.getUniqueId());
+        }
+
+        // Check min/max player count
+        if (members.size() < dungeon.getMinPlayers()) {
+            MessageUtil.send(starter, configManager.getMessage("party.not-enough-players"));
+            return false;
+        }
+        if (members.size() > dungeon.getMaxPlayers()) {
+            MessageUtil.send(starter, configManager.getMessage("party.too-many-players"));
+            return false;
         }
 
         // Check if any member is already in a dungeon
@@ -131,8 +150,11 @@ public class DungeonManager {
      * Clean up a finished dungeon instance.
      */
     private void cleanupInstance(DungeonInstance instance) {
+        // Capture player snapshot BEFORE cleanup clears the lists
+        Set<UUID> playerSnapshot = new LinkedHashSet<>(instance.getAllPlayers());
+
         // Remove player tracking
-        for (UUID uuid : instance.getAllPlayers()) {
+        for (UUID uuid : playerSnapshot) {
             playerInstances.remove(uuid);
         }
 
@@ -147,9 +169,9 @@ public class DungeonManager {
             rewardChestManager.cleanupInstance(instance.getInstanceId());
         }
 
-        // Clean up party
+        // Clean up party using the snapshot (allPlayers may be cleared by now)
         Party party = null;
-        for (UUID uuid : instance.getAllPlayers()) {
+        for (UUID uuid : playerSnapshot) {
             party = partyManager.getParty(uuid);
             if (party != null) break;
         }

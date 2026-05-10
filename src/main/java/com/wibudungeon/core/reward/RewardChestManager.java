@@ -278,7 +278,8 @@ public class RewardChestManager implements Listener {
             List<Integer> usedSlots = new ArrayList<>();
             for (Reward reward : rewards) {
                 double roll = ThreadLocalRandom.current().nextDouble();
-                if (roll > (reward.getChance() * difficultyMult)) continue;
+                double effectiveChance = Math.min(1.0, reward.getChance() * difficultyMult);
+                if (roll > effectiveChance) continue;
                 if (reward.getType() == Reward.RewardType.ITEM && reward.getItem() != null) {
                     int slot = findEmptySlot(inv, usedSlots);
                     if (slot >= 0) {

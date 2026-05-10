@@ -262,6 +262,10 @@ public class PortalManager {
         while (it.hasNext()) {
             DungeonPortal portal = it.next().getValue();
             if (portal.isExpired()) {
+                // v1.0.8 fix: Skip portals that are actively being used (player opened GUI)
+                // to prevent race condition where portal is removed before dungeon starts.
+                if (portal.isUsed()) continue;
+
                 // Full cleanup of all entities
                 portal.remove();
                 it.remove();

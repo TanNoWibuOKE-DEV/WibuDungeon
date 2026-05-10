@@ -37,7 +37,7 @@ import java.util.logging.Level;
  * - BossBar progression display
  *
  * @author WibuDev
- * @version 1.0.6
+ * @version 1.0.7
  */
 public class WibuDungeon extends JavaPlugin {
 
@@ -51,6 +51,7 @@ public class WibuDungeon extends JavaPlugin {
     private SetupManager setupManager;
     private com.wibudungeon.core.reward.RewardChestManager rewardChestManager;
     private com.wibudungeon.core.portal.TrackingManager trackingManager;
+    private com.wibudungeon.core.portal.StaticEntryManager staticEntryManager;
 
     // GUIs
     private JoinGUI joinGUI;
@@ -81,8 +82,11 @@ public class WibuDungeon extends JavaPlugin {
             // Register event listeners
             registerListeners();
 
-            // Start portal scheduler
+            // Start portal scheduler (for DYNAMIC dungeons)
             portalManager.startScheduler();
+
+            // Load static dungeon entries (v1.0.7)
+            staticEntryManager.loadAll();
 
             long elapsed = System.currentTimeMillis() - startTime;
             getLogger().info("========================================");
@@ -126,6 +130,11 @@ public class WibuDungeon extends JavaPlugin {
             trackingManager.cleanupAll();
         }
 
+        // Clean up static entries (v1.0.7)
+        if (staticEntryManager != null) {
+            staticEntryManager.cleanupAll();
+        }
+
         getLogger().info("WibuDungeon disabled.");
     }
 
@@ -160,6 +169,10 @@ public class WibuDungeon extends JavaPlugin {
 
         // Tracking manager
         trackingManager = new com.wibudungeon.core.portal.TrackingManager(this, configManager, portalManager);
+
+        // Static entry manager (v1.0.7)
+        staticEntryManager = new com.wibudungeon.core.portal.StaticEntryManager(this, configManager);
+        staticEntryManager.setJoinGUI(joinGUI);
     }
 
     /**
@@ -170,6 +183,8 @@ public class WibuDungeon extends JavaPlugin {
                 configManager, dungeonManager, partyManager, mobSpawner,
                 setupManager, adminGUI, partyGUI);
         cmd.setTrackingManager(trackingManager);
+        cmd.setPortalManager(portalManager);
+        cmd.setStaticEntryManager(staticEntryManager);
 
         PluginCommand pluginCmd = getCommand("wd");
         if (pluginCmd != null) {
@@ -205,6 +220,9 @@ public class WibuDungeon extends JavaPlugin {
 
         // Reward chest listener
         registerListener(rewardChestManager);
+
+        // Static entry listener (v1.0.7)
+        registerListener(staticEntryManager);
     }
 
     private void registerListener(Listener listener) {

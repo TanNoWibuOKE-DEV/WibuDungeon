@@ -14,6 +14,7 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Represents an active dungeon session with players, mobs, and state.
@@ -36,7 +37,7 @@ public class DungeonInstance {
     private final Set<UUID> allPlayers = new LinkedHashSet<>();
     private final Map<UUID, Location> previousLocations = new HashMap<>();
     private final Map<UUID, GameMode> previousGameModes = new HashMap<>();
-    private List<LivingEntity> currentMobs = new ArrayList<>();
+    private volatile List<LivingEntity> currentMobs = new CopyOnWriteArrayList<>();
     private LivingEntity bossEntity;
     private BossBar bossBar;
     private BukkitTask timerTask;
@@ -70,8 +71,19 @@ public class DungeonInstance {
         previousLocations.put(uuid, player.getLocation().clone());
         previousGameModes.put(uuid, player.getGameMode());
 
-        // Teleport to dungeon spawn
-        player.teleport(dungeon.getSpawnPoint());
+        // Teleport to dungeon spawn (handle cross-world)
+        Location spawnPoint = dungeon.getSpawnPoint();
+        if (spawnPoint != null && spawnPoint.getWorld() != null) {
+            // Ensure chunk is loaded for cross-world teleport
+            if (!spawnPoint.getChunk().isLoaded()) {
+                spawnPoint.getChunk().load();
+            }
+            player.teleport(spawnPoint);
+        } else {
+            // Fallback: try to resolve spawn point from stored world name
+            plugin.getLogger().warning("Dungeon " + dungeon.getId()
+                    + " has no valid spawn point! Player " + player.getName() + " was not teleported.");
+        }
         player.setGameMode(GameMode.SURVIVAL);
 
         // Show bossbar
@@ -183,6 +195,7 @@ public class DungeonInstance {
      * Complete the dungeon successfully.
      */
     public void complete() {
+        if (state == State.COMPLETED || state == State.FAILED) return;
         state = State.COMPLETED;
         String completeMsg = configManager.getMessage("dungeon.completed");
         for (UUID uuid : allPlayers) {
@@ -193,8 +206,9 @@ public class DungeonInstance {
         // Global broadcast
         broadcastClear();
 
-        cleanup();
+        // Run callback BEFORE cleanup so allPlayers is still available for rewards
         if (onComplete != null) onComplete.run();
+        cleanup();
     }
 
     /**
@@ -270,14 +284,16 @@ public class DungeonInstance {
      * Fail the dungeon (time ran out or all dead).
      */
     public void fail() {
+        if (state == State.FAILED || state == State.COMPLETED) return;
         state = State.FAILED;
         String failMsg = configManager.getMessage("dungeon.failed");
         for (UUID uuid : allPlayers) {
             Player p = Bukkit.getPlayer(uuid);
             if (p != null) MessageUtil.send(p, failMsg);
         }
-        cleanup();
+        // Run callback BEFORE cleanup so allPlayers is still available
         if (onFail != null) onFail.run();
+        cleanup();
     }
 
     /**
@@ -302,7 +318,10 @@ public class DungeonInstance {
             if (player != null) {
                 player.hideBossBar(bossBar);
                 Location prevLoc = previousLocations.get(uuid);
-                if (prevLoc != null) player.teleport(prevLoc);
+                if (prevLoc != null && prevLoc.getWorld() != null) {
+                    if (!prevLoc.getChunk().isLoaded()) prevLoc.getChunk().load();
+                    player.teleport(prevLoc);
+                }
                 GameMode prevMode = previousGameModes.get(uuid);
                 if (prevMode != null) player.setGameMode(prevMode);
                 MessageUtil.send(player, configManager.getMessage("dungeon.teleported-out"));
@@ -360,7 +379,7 @@ public class DungeonInstance {
     public Set<UUID> getSpectators() { return spectators; }
     public Set<UUID> getAllPlayers() { return allPlayers; }
     public List<LivingEntity> getCurrentMobs() { return currentMobs; }
-    public void setCurrentMobs(List<LivingEntity> mobs) { this.currentMobs = mobs; }
+    public void setCurrentMobs(List<LivingEntity> mobs) { this.currentMobs = new CopyOnWriteArrayList<>(mobs); }
     public LivingEntity getBossEntity() { return bossEntity; }
     public void setBossEntity(LivingEntity boss) { this.bossEntity = boss; }
     public int getTimeRemaining() { return timeRemaining; }
@@ -386,7 +405,10 @@ public class DungeonInstance {
 
         // Teleport back
         Location prevLoc = previousLocations.get(uuid);
-        if (prevLoc != null) player.teleport(prevLoc);
+        if (prevLoc != null && prevLoc.getWorld() != null) {
+            if (!prevLoc.getChunk().isLoaded()) prevLoc.getChunk().load();
+            player.teleport(prevLoc);
+        }
         GameMode prevMode = previousGameModes.get(uuid);
         if (prevMode != null) player.setGameMode(prevMode);
 

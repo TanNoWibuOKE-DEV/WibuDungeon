@@ -105,14 +105,20 @@ public class PortalListener implements Listener {
         String instanceId = MobSpawner.getInstanceId(entity);
         if (instanceId == null) return;
 
+        // Find the dungeon instance directly by checking any player in the instance
+        DungeonInstance instance = null;
         for (Player player : entity.getWorld().getPlayers()) {
-            DungeonInstance instance = dungeonManager.getPlayerInstance(player.getUniqueId());
-            if (instance != null && instance.getInstanceId().equals(instanceId)) {
-                event.getDrops().clear();
-                event.setDroppedExp(0);
-                waveManager.onMobKilled(instance, entity);
-                return;
+            DungeonInstance pi = dungeonManager.getPlayerInstance(player.getUniqueId());
+            if (pi != null && pi.getInstanceId().equals(instanceId)) {
+                instance = pi;
+                break;
             }
+        }
+
+        if (instance != null) {
+            event.getDrops().clear();
+            event.setDroppedExp(0);
+            waveManager.onMobKilled(instance, entity);
         }
     }
 
@@ -143,8 +149,10 @@ public class PortalListener implements Listener {
     public void onPlayerQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
         portalCooldowns.remove(player.getUniqueId());
-        DungeonInstance instance = dungeonManager.getPlayerInstance(player.getUniqueId());
-        if (instance != null) instance.onPlayerDeath(player);
+        // Properly leave dungeon instead of marking as dead
+        if (dungeonManager.isInDungeon(player.getUniqueId())) {
+            dungeonManager.leaveDungeon(player);
+        }
     }
 
     @EventHandler

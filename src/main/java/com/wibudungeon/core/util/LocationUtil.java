@@ -42,7 +42,15 @@ public final class LocationUtil {
         if (parts.length < 4) return null;
 
         try {
-            World world = Bukkit.getWorld(parts[0]);
+            String worldName = parts[0];
+            World world = Bukkit.getWorld(worldName);
+
+            // v1.0.7: If world isn't loaded yet, try loading it
+            if (world == null) {
+                org.bukkit.WorldCreator creator = new org.bukkit.WorldCreator(worldName);
+                world = Bukkit.createWorld(creator);
+            }
+
             if (world == null) return null;
 
             double x = Double.parseDouble(parts[1]);

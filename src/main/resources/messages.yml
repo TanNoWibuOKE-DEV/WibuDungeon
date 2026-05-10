@@ -53,6 +53,10 @@ dungeon:
   already-in-dungeon: "&cYou are already in a dungeon!"
   max-instances: "&cThis dungeon has reached its maximum instances!"
 
+party:
+  not-enough-players: "&cNot enough players to start! Check the dungeon's min-players requirement."
+  too-many-players: "&cToo many players! Check the dungeon's max-players requirement."
+
 admin:
   wand-given: "&aWibuDungeon wand given!"
   pos1-set: "&aPosition 1 set at &e%x%, %y%, %z%"

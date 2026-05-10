@@ -1,6 +1,7 @@
 package com.wibudungeon.core.config;
 
 import com.wibudungeon.core.dungeon.Dungeon;
+import com.wibudungeon.core.dungeon.DungeonType;
 import com.wibudungeon.core.reward.Reward;
 import com.wibudungeon.core.reward.RewardBundle;
 import com.wibudungeon.core.util.ItemBuilder;
@@ -276,12 +277,44 @@ public class ConfigManager {
         dungeon.setMinPlayers(config.getInt("min-players", 1));
         dungeon.setMaxPlayers(config.getInt("max-players", 4));
 
+        // v1.0.7: Dungeon type (backward compat: default DYNAMIC)
+        dungeon.setType(DungeonType.fromString(config.getString("type", "DYNAMIC")));
+
+        // v1.0.7: Entry point for STATIC dungeons
+        dungeon.setEntryPoint(LocationUtil.deserialize(config.getString("entry-point")));
+
         List<String> mobSpawnStrings = config.getStringList("mob-spawns");
         List<Location> mobSpawns = new ArrayList<>();
         for (String s : mobSpawnStrings) {
             Location loc = LocationUtil.deserialize(s);
             if (loc != null) mobSpawns.add(loc);
         }
+
+        // v1.0.7: If root-level mob-spawns is empty, try to load from wave-level entries
+        if (mobSpawns.isEmpty() && config.isConfigurationSection("waves")) {
+            for (String waveKey : config.getConfigurationSection("waves").getKeys(false)) {
+                String wBasePath = "waves." + waveKey + ".";
+                // Check v1.0.7 mob-spawn-entries first
+                if (config.isList(wBasePath + "mob-spawn-entries")) {
+                    for (Object obj : config.getList(wBasePath + "mob-spawn-entries")) {
+                        if (obj instanceof java.util.Map<?, ?> map) {
+                            Object locObj = map.get("location");
+                            if (locObj != null) {
+                                Location loc = LocationUtil.deserialize(String.valueOf(locObj));
+                                if (loc != null) mobSpawns.add(loc);
+                            }
+                        }
+                    }
+                } else {
+                    // Fallback: wave-level mob-spawns list
+                    for (String s : config.getStringList(wBasePath + "mob-spawns")) {
+                        Location loc = LocationUtil.deserialize(s);
+                        if (loc != null) mobSpawns.add(loc);
+                    }
+                }
+            }
+        }
+
         dungeon.setMobSpawns(mobSpawns);
         return dungeon;
     }
@@ -302,14 +335,22 @@ public class ConfigManager {
         if (!dungeonsDir.exists()) dungeonsDir.mkdirs();
 
         File file = new File(dungeonsDir, dungeon.getId() + ".yml");
-        YamlConfiguration config = new YamlConfiguration();
+        YamlConfiguration config;
+        // Preserve existing data (waves, etc.) by loading existing file first
+        if (file.exists()) {
+            config = YamlConfiguration.loadConfiguration(file);
+        } else {
+            config = new YamlConfiguration();
+        }
 
         config.set("name", dungeon.getName());
         config.set("enabled", dungeon.isEnabled());
+        config.set("type", dungeon.getType().name());
         config.set("world", dungeon.getWorld());
         config.set("pos1", LocationUtil.serialize(dungeon.getPos1()));
         config.set("pos2", LocationUtil.serialize(dungeon.getPos2()));
         config.set("spawn-point", LocationUtil.serialize(dungeon.getSpawnPoint()));
+        config.set("entry-point", LocationUtil.serialize(dungeon.getEntryPoint()));
         config.set("wave-set", dungeon.getWaveSet());
         config.set("reward-set", dungeon.getRewardSet());
         config.set("max-instances", dungeon.getMaxInstances());
@@ -426,6 +467,55 @@ public class ConfigManager {
 
     public List<Wave> getWaveSet(String setId) {
         return waveSets.getOrDefault(setId, Collections.emptyList());
+    }
+
+    /**
+     * Get mob spawn locations for a specific wave from the dungeon file.
+     * In v1.0.7, spawns can be stored per-wave under waves.<num>.mob-spawn-entries
+     * or waves.<num>.mob-spawns. Falls back to root-level mob-spawns.
+     *
+     * @param dungeonId the dungeon ID
+     * @param waveNum   the wave number (1-based)
+     * @return list of spawn locations, never null
+     */
+    public List<org.bukkit.Location> getWaveMobSpawnLocations(String dungeonId, int waveNum) {
+        File file = new File(plugin.getDataFolder(), "dungeons/" + dungeonId + ".yml");
+        if (!file.exists()) return Collections.emptyList();
+
+        org.bukkit.configuration.file.FileConfiguration config =
+                org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(file);
+
+        // Try per-wave mob-spawn-entries first (v1.0.7 format)
+        String wBasePath = "waves." + waveNum + ".";
+        List<org.bukkit.Location> result = new ArrayList<>();
+
+        if (config.isList(wBasePath + "mob-spawn-entries")) {
+            for (Object obj : config.getList(wBasePath + "mob-spawn-entries")) {
+                if (obj instanceof java.util.Map<?, ?> map) {
+                    Object locObj = map.get("location");
+                    if (locObj != null) {
+                        org.bukkit.Location loc = LocationUtil.deserialize(String.valueOf(locObj));
+                        if (loc != null) result.add(loc);
+                    }
+                }
+            }
+        }
+
+        // Try per-wave mob-spawns list (legacy wave-level format)
+        if (result.isEmpty()) {
+            for (String s : config.getStringList(wBasePath + "mob-spawns")) {
+                org.bukkit.Location loc = LocationUtil.deserialize(s);
+                if (loc != null) result.add(loc);
+            }
+        }
+
+        // Fall back to root-level mob-spawns
+        if (result.isEmpty()) {
+            Dungeon dungeon = getDungeon(dungeonId);
+            if (dungeon != null) result.addAll(dungeon.getMobSpawns());
+        }
+
+        return result;
     }
 
     // ===== REWARD SETS =====

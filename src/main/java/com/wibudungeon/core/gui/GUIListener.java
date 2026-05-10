@@ -14,6 +14,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.Map;
@@ -68,24 +69,52 @@ public class GUIListener implements Listener {
         }
     }
 
+    /**
+     * Clean up portal metadata when any GUI is closed.
+     */
+    @EventHandler
+    public void onInventoryClose(InventoryCloseEvent event) {
+        if (!(event.getPlayer() instanceof Player player)) return;
+        String title = PlainTextComponentSerializer.plainText()
+                .serialize(event.getView().title());
+        if (title.contains("Dungeon Portal")) {
+            if (player.hasMetadata("wibudungeon_portal")) {
+                player.removeMetadata("wibudungeon_portal",
+                        player.getServer().getPluginManager().getPlugin("WibuDungeon"));
+            }
+            if (player.hasMetadata("wibudungeon_static_dungeon")) {
+                player.removeMetadata("wibudungeon_static_dungeon",
+                        player.getServer().getPluginManager().getPlugin("WibuDungeon"));
+            }
+        }
+    }
+
     private void handleJoinGUI(Player player, InventoryClickEvent event) {
         ItemStack item = event.getCurrentItem();
         if (item == null || item.getType() == Material.BLACK_STAINED_GLASS_PANE) return;
 
         int slot = event.getSlot();
+        boolean isStatic = player.hasMetadata("wibudungeon_static_dungeon");
 
         switch (slot) {
             case 12 -> {
                 // Create party or invite
+                // v1.0.8 fix: Read metadata BEFORE closeInventory() wipes it
+                boolean hasPortal12 = player.hasMetadata("wibudungeon_portal");
+                String portalIdStr12 = hasPortal12
+                        ? player.getMetadata("wibudungeon_portal").getFirst().asString() : null;
+                String staticId12 = isStatic
+                        ? player.getMetadata("wibudungeon_static_dungeon").getFirst().asString() : null;
+
                 Party party = partyManager.getParty(player.getUniqueId());
                 if (party == null) {
                     partyManager.createParty(player);
                     player.closeInventory();
                     // Reopen with updated info
-                    if (player.hasMetadata("wibudungeon_portal")) {
-                        String portalIdStr = player.getMetadata("wibudungeon_portal")
-                                .getFirst().asString();
-                        UUID portalId = UUID.fromString(portalIdStr);
+                    if (isStatic && staticId12 != null) {
+                        joinGUI.openForStatic(player, staticId12);
+                    } else if (hasPortal12 && portalIdStr12 != null) {
+                        UUID portalId = UUID.fromString(portalIdStr12);
                         DungeonPortal portal = null;
                         for (DungeonPortal p : portalManager.getActivePortals()) {
                             if (p.getPortalId().equals(portalId)) {
@@ -108,10 +137,21 @@ public class GUIListener implements Listener {
             case 14 -> {
                 // Start dungeon
                 if (item.getType() == Material.LIME_WOOL) {
-                    player.closeInventory();
-                    if (player.hasMetadata("wibudungeon_portal")) {
-                        String portalIdStr = player.getMetadata("wibudungeon_portal")
-                                .getFirst().asString();
+                    // v1.0.8 fix: Read ALL metadata BEFORE closeInventory()
+                    // because closeInventory() fires InventoryCloseEvent which wipes metadata.
+                    boolean hasPortal = player.hasMetadata("wibudungeon_portal");
+                    String portalIdStr = hasPortal
+                            ? player.getMetadata("wibudungeon_portal").getFirst().asString() : null;
+                    String staticDungeonId = isStatic
+                            ? player.getMetadata("wibudungeon_static_dungeon").getFirst().asString() : null;
+
+                    player.closeInventory(); // fires InventoryCloseEvent → metadata cleared here
+
+                    if (isStatic && staticDungeonId != null) {
+                        // v1.0.7: Static dungeon — start directly without portal
+                        dungeonManager.startDungeon(staticDungeonId, player);
+                    } else if (hasPortal && portalIdStr != null) {
+                        // Dynamic dungeon — existing portal flow
                         UUID portalId = UUID.fromString(portalIdStr);
                         DungeonPortal portal = null;
                         for (DungeonPortal p : portalManager.getActivePortals()) {
@@ -126,10 +166,11 @@ public class GUIListener implements Listener {
                             if (started) {
                                 portalManager.removePortal(portalId);
                             }
+                        } else {
+                            // Portal expired or removed before player clicked Start
+                            MessageUtil.send(player, configManager.getMessage("portal.expired"));
                         }
                     }
-                    player.removeMetadata("wibudungeon_portal",
-                            player.getServer().getPluginManager().getPlugin("WibuDungeon"));
                 }
             }
             case 22 -> player.closeInventory();
@@ -223,6 +264,7 @@ public class GUIListener implements Listener {
         // Dungeon item clicked
         if ((item.getType() == Material.LIME_CONCRETE || item.getType() == Material.RED_CONCRETE)
                 && slot >= 9 && slot < size - 9) {
+            if (item.getItemMeta() == null || item.getItemMeta().displayName() == null) return;
             String displayName = PlainTextComponentSerializer.plainText()
                     .serialize(item.getItemMeta().displayName());
             String dungeonId = displayName.trim();

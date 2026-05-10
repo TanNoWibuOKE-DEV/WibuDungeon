@@ -66,13 +66,21 @@ public class AdminGUI {
             if (slot % 9 == 0 || slot % 9 == 8) { slot++; continue; }
 
             Dungeon dungeon = entry.getValue();
-            Material icon = dungeon.isEnabled() ? Material.LIME_CONCRETE : Material.RED_CONCRETE;
+            // v1.0.7: Use different icons per type
+            Material icon;
+            if (dungeon.isStatic()) {
+                icon = dungeon.isEnabled() ? Material.END_PORTAL_FRAME : Material.GRAY_CONCRETE;
+            } else {
+                icon = dungeon.isEnabled() ? Material.NETHER_STAR : Material.RED_CONCRETE;
+            }
+            String typeTag = dungeon.isStatic() ? "&d[STATIC]" : "&b[DYNAMIC]";
 
             gui.setItem(slot, new ItemBuilder(icon)
                     .name("&e" + dungeon.getId())
                     .lore(
                             "&7",
                             "&e  Name: &f" + dungeon.getName(),
+                            "&e  Type: " + typeTag,
                             "&e  Status: " + (dungeon.isEnabled() ? "&a✔ Enabled" : "&c✘ Disabled"),
                             "&e  World: &f" + dungeon.getWorld(),
                             "&e  Players: &f" + dungeon.getMinPlayers() + "-" + dungeon.getMaxPlayers(),
@@ -146,18 +154,24 @@ public class AdminGUI {
         }
 
         // Dungeon info header
+        String typeTag = dungeon.isStatic() ? "&d[STATIC]" : "&b[DYNAMIC]";
+        java.util.List<String> headerLore = new java.util.ArrayList<>(java.util.Arrays.asList(
+                "&7",
+                "&e  Name: &f" + dungeon.getName(),
+                "&e  Type: " + typeTag,
+                "&e  World: &f" + dungeon.getWorld(),
+                "&e  Pos1: &f" + LocationUtil.format(dungeon.getPos1()),
+                "&e  Pos2: &f" + LocationUtil.format(dungeon.getPos2()),
+                "&e  Spawn: &f" + LocationUtil.format(dungeon.getSpawnPoint())));
+        if (dungeon.isStatic()) {
+            headerLore.add("&e  Entry: &f" + LocationUtil.format(dungeon.getEntryPoint()));
+        }
+        headerLore.add("&e  Mob Spawns: &f" + dungeon.getMobSpawns().size());
+        headerLore.add("&7");
+
         gui.setItem(4, new ItemBuilder(Material.BOOK)
                 .name("&e&l" + dungeon.getId())
-                .lore(
-                        "&7",
-                        "&e  Name: &f" + dungeon.getName(),
-                        "&e  World: &f" + dungeon.getWorld(),
-                        "&e  Pos1: &f" + LocationUtil.format(dungeon.getPos1()),
-                        "&e  Pos2: &f" + LocationUtil.format(dungeon.getPos2()),
-                        "&e  Spawn: &f" + LocationUtil.format(dungeon.getSpawnPoint()),
-                        "&e  Mob Spawns: &f" + dungeon.getMobSpawns().size(),
-                        "&7"
-                )
+                .lore(headerLore.toArray(new String[0]))
                 .build());
 
         // Row 2: Main settings

@@ -25,6 +25,8 @@ public class Dungeon {
     private int maxInstances;
     private int minPlayers;
     private int maxPlayers;
+    private DungeonType type;
+    private Location entryPoint;
 
     public Dungeon(String id) {
         this.id = id;
@@ -36,6 +38,7 @@ public class Dungeon {
         this.maxInstances = 3;
         this.minPlayers = 1;
         this.maxPlayers = 4;
+        this.type = DungeonType.DYNAMIC;
     }
 
     // Getters
@@ -52,6 +55,8 @@ public class Dungeon {
     public int getMaxInstances() { return maxInstances; }
     public int getMinPlayers() { return minPlayers; }
     public int getMaxPlayers() { return maxPlayers; }
+    public DungeonType getType() { return type; }
+    public Location getEntryPoint() { return entryPoint; }
 
     // Setters
     public void setName(String name) { this.name = name; }
@@ -65,6 +70,11 @@ public class Dungeon {
     public void setMaxInstances(int maxInstances) { this.maxInstances = maxInstances; }
     public void setMinPlayers(int minPlayers) { this.minPlayers = minPlayers; }
     public void setMaxPlayers(int maxPlayers) { this.maxPlayers = maxPlayers; }
+    public void setType(DungeonType type) { this.type = type != null ? type : DungeonType.DYNAMIC; }
+    public void setEntryPoint(Location entryPoint) { this.entryPoint = entryPoint; }
+
+    public boolean isStatic() { return type == DungeonType.STATIC; }
+    public boolean isDynamic() { return type == DungeonType.DYNAMIC; }
 
     public void setMobSpawns(List<Location> mobSpawns) {
         this.mobSpawns = mobSpawns != null ? new ArrayList<>(mobSpawns) : new ArrayList<>();
@@ -76,9 +86,9 @@ public class Dungeon {
 
     /**
      * Check if the dungeon configuration is valid for use.
+     * v1.0.7: No longer requires root-level mobSpawns since spawns are stored per-wave.
      */
     public boolean isValid() {
-        return pos1 != null && pos2 != null && spawnPoint != null
-                && !mobSpawns.isEmpty() && world != null;
+        return pos1 != null && pos2 != null && spawnPoint != null && world != null;
     }
 }

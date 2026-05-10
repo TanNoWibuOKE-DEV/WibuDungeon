@@ -50,6 +50,15 @@ public class WaveManager {
         int nextIndex = instance.getCurrentWaveIndex() + 1;
         List<Wave> waves = configManager.getWaveSet(instance.getDungeon().getWaveSet());
 
+        if (waves.isEmpty()) {
+            plugin.getLogger().severe("[WibuDungeon] Wave set '"
+                    + instance.getDungeon().getWaveSet()
+                    + "' is empty or not found! Cannot start dungeon instance: "
+                    + instance.getInstanceId());
+            instance.fail();
+            return;
+        }
+
         if (nextIndex >= waves.size()) {
             instance.complete();
             return;
@@ -89,16 +98,29 @@ public class WaveManager {
             public void run() {
                 if (!instance.isActive()) return;
 
+                // v1.0.7: Use per-wave spawn locations; fall back to root-level mob-spawns
+                List<org.bukkit.Location> spawnLocations = configManager.getWaveMobSpawnLocations(
+                        instance.getDungeon().getId(), wave.getWaveNumber());
+                if (spawnLocations.isEmpty()) {
+                    spawnLocations = instance.getDungeon().getMobSpawns();
+                }
+
                 List<LivingEntity> mobs = mobSpawner.spawnWaveMobs(
-                        wave, instance.getDungeon().getMobSpawns(), instance.getInstanceId());
+                        wave, spawnLocations, instance.getInstanceId());
                 instance.setCurrentMobs(mobs);
 
                 if (wave instanceof BossWave bossWave) {
-                    LivingEntity boss = mobSpawner.spawnBoss(bossWave,
-                            instance.getDungeon().getMobSpawns().getFirst(), instance.getInstanceId());
-                    if (boss != null) {
-                        instance.setBossEntity(boss);
-                        instance.getCurrentMobs().add(boss);
+                    List<org.bukkit.Location> spawns = spawnLocations;
+                    if (!spawns.isEmpty()) {
+                        LivingEntity boss = mobSpawner.spawnBoss(bossWave,
+                                spawns.getFirst(), instance.getInstanceId());
+                        if (boss != null) {
+                            instance.setBossEntity(boss);
+                            instance.getCurrentMobs().add(boss);
+                        }
+                    } else {
+                        plugin.getLogger().warning("Boss wave " + wave.getWaveNumber()
+                                + " skipped — no mob spawn locations defined!");
                     }
                 }
 
@@ -162,6 +184,9 @@ public class WaveManager {
             }
         }
 
+        // v1.0.7: Only give direct inventory rewards if NO chest rewards were spawned
+        boolean chestRewardsGiven = false;
+
         // Clean up previous wave chests
         if (rewardChestManager != null) {
             rewardChestManager.cleanupInstance(instance.getInstanceId());
@@ -183,6 +208,7 @@ public class WaveManager {
                         bundle,
                         instance.getInstanceId()
                 );
+                chestRewardsGiven = true;
             } else {
                 // Legacy reward system fallback
                 List<Reward> waveRewards = configManager.getWaveRewards(
@@ -200,13 +226,16 @@ public class WaveManager {
                             diffMult,
                             instance.getInstanceId()
                     );
+                    chestRewardsGiven = true;
                 }
             }
         }
 
-        // Also give direct inventory rewards as fallback
-        rewardManager.giveWaveRewards(instance.getDungeon().getRewardSet(),
-                completedWave.getWaveNumber(), new ArrayList<>(instance.getAlivePlayers()));
+        // Only give direct inventory rewards as fallback when no chest rewards exist
+        if (!chestRewardsGiven) {
+            rewardManager.giveWaveRewards(instance.getDungeon().getRewardSet(),
+                    completedWave.getWaveNumber(), new ArrayList<>(instance.getAlivePlayers()));
+        }
 
         // Check if this was the last wave
         int nextIndex = instance.getCurrentWaveIndex() + 1;
