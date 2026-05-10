@@ -1,6 +1,7 @@
 package com.wibudungeon.core.portal;
 
 import com.wibudungeon.core.config.ConfigManager;
+import com.wibudungeon.core.dungeon.Dungeon;
 import com.wibudungeon.core.util.MessageUtil;
 import org.bukkit.*;
 import org.bukkit.entity.*;
@@ -17,11 +18,13 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Portal Tracking HUD System v1.0.9
+ * Dungeon Tracking HUD System v1.0.9
  *
- * Ported directly from the Waypoint plugin HUD system.
- * Uses TextDisplay with screen-space projection and setTeleportDuration
- * for smooth client-side interpolation.
+ * Tracks the DUNGEON LOCATION (from config), not the portal entity.
+ * This means tracking works anytime — even when no portal is spawned.
+ *
+ * Target = center of dungeon region (midpoint of pos1 + pos2).
+ * Uses Waypoint-style TextDisplay HUD with screen-space projection.
  *
  * @since v1.0.9
  */
@@ -45,41 +48,44 @@ public class TrackingManager {
     }
 
     /**
-     * Start tracking a portal for a player.
+     * Start tracking a dungeon by its ID.
+     * Tracks the dungeon's region center — works even without a spawned portal.
      */
-    public void startTracking(Player player, UUID portalId) {
+    public void startTracking(Player player, String dungeonId) {
         if (isTracking(player.getUniqueId())) {
             stopTracking(player.getUniqueId());
         }
 
-        DungeonPortal portal = portalManager.getPortalById(portalId);
-        if (portal == null || portal.isExpired()) {
-            MessageUtil.send(player, configManager.getPrefix() + "&cThis portal no longer exists!");
+        Dungeon dungeon = configManager.getDungeon(dungeonId);
+        if (dungeon == null) {
+            MessageUtil.send(player, configManager.getPrefix() + "&cDungeon '&e" + dungeonId + "&c' not found!");
             return;
         }
 
-        Location portalCenter = portal.getCenter();
-        if (portalCenter == null || portalCenter.getWorld() == null) return;
+        // Target = center of dungeon region
+        Location target = getDungeonCenter(dungeon);
+        if (target == null) {
+            MessageUtil.send(player, configManager.getPrefix() + "&cDungeon has no valid location!");
+            return;
+        }
 
-        MessageUtil.send(player, configManager.getPrefix() + "&a⏳ Portal Tracker activated!");
-        MessageUtil.send(player, configManager.getPrefix() + "&7Follow the &e⇔ &7marker to the portal.");
-        MessageUtil.send(player, configManager.getPrefix() + "&7Use &e/wd untrack &7to stop tracking.");
+        MessageUtil.send(player, configManager.getPrefix() + "&a⏳ Tracking dungeon &e" + dungeonId + "&a!");
+        MessageUtil.send(player, configManager.getPrefix() + "&7Follow the &e⇔ &7marker to the dungeon.");
+        MessageUtil.send(player, configManager.getPrefix() + "&7Use &e/wd untrack &7to stop.");
 
         TextDisplay hud = spawnHUD(player);
 
-        // Hide from all other players
+        // Per-player visibility
         for (Player online : Bukkit.getOnlinePlayers()) {
             if (!online.equals(player)) {
                 online.hideEntity(plugin, hud);
             }
         }
 
-        TrackingSession session = new TrackingSession(player.getUniqueId(), portalId, hud);
+        TrackingSession session = new TrackingSession(player.getUniqueId(), dungeonId, target, hud);
         activeSessions.put(player.getUniqueId(), session);
 
         session.task = new BukkitRunnable() {
-            int ticks = 0;
-
             @Override
             public void run() {
                 Player p = Bukkit.getPlayer(player.getUniqueId());
@@ -89,40 +95,52 @@ public class TrackingManager {
                     return;
                 }
 
-                if (ticks++ % 40 == 0) {
-                    if (portal.isExpired() || !portal.isValid()) {
-                        MessageUtil.send(p, configManager.getPrefix() + "&cThe tracked portal has disappeared!");
-                        cleanupSession(player.getUniqueId());
-                        cancel();
-                        return;
-                    }
-                }
-
-                Location target = portal.getCenter();
-                if (target == null || target.getWorld() == null) {
-                    cleanupSession(player.getUniqueId());
-                    cancel();
-                    return;
-                }
-
-                if (!p.getWorld().equals(target.getWorld())) {
+                if (!p.getWorld().getName().equals(session.targetLocation.getWorld().getName())) {
                     removeHUD(session);
                     return;
                 }
 
-                updateHUD(p, session, target);
+                updateHUD(p, session);
             }
         };
         session.task.runTaskTimer(plugin, 0L, 1L);
     }
 
     /**
-     * HUD update — ported directly from Waypoint plugin.
+     * Legacy: Start tracking by portal ID (for backward compatibility).
      */
-    private void updateHUD(Player p, TrackingSession session, Location targetLoc) {
+    public void startTracking(Player player, UUID portalId) {
+        DungeonPortal portal = portalManager.getPortalById(portalId);
+        if (portal == null) {
+            MessageUtil.send(player, configManager.getPrefix() + "&cPortal not found!");
+            return;
+        }
+        // Find dungeon ID from portal and track by dungeon
+        startTracking(player, portal.getDungeonId());
+    }
+
+    /**
+     * Get dungeon center (midpoint of pos1 + pos2).
+     */
+    private Location getDungeonCenter(Dungeon dungeon) {
+        Location p1 = dungeon.getPos1();
+        Location p2 = dungeon.getPos2();
+        if (p1 == null || p2 == null || p1.getWorld() == null) return null;
+
+        return new Location(p1.getWorld(),
+                (p1.getX() + p2.getX()) / 2.0,
+                (p1.getY() + p2.getY()) / 2.0,
+                (p1.getZ() + p2.getZ()) / 2.0);
+    }
+
+    /**
+     * HUD update — Waypoint-style screen-space projection.
+     */
+    private void updateHUD(Player p, TrackingSession session) {
         Location eye = p.getEyeLocation();
-        Location portalTarget = targetLoc.clone().add(0, 1.5, 0);
-        double dist = eye.distance(portalTarget);
+        Location targetCenter = session.targetLocation.clone();
+        targetCenter.setY(targetCenter.getY() + 1.5);
+        double dist = eye.distance(targetCenter);
 
         TextDisplay display = session.hudDisplay;
         if (display == null || display.isDead()) {
@@ -138,7 +156,7 @@ public class TrackingManager {
         // Arrival check
         if (dist <= ARRIVAL_DISTANCE) {
             cleanupSession(p.getUniqueId());
-            MessageUtil.send(p, configManager.getPrefix() + "&a&l✔ You've reached the dungeon portal!");
+            MessageUtil.send(p, configManager.getPrefix() + "&a&l✔ You've reached the dungeon!");
             spawnFirework(p.getLocation());
             p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f);
             return;
@@ -153,16 +171,16 @@ public class TrackingManager {
 
         // === Waypoint-style screen-space projection ===
         Vector forward = eye.getDirection().normalize();
-        Vector targetVec = portalTarget.toVector();
+        Vector targetVec = targetCenter.toVector();
         Vector toTarget = targetVec.clone().subtract(eye.toVector()).normalize();
         double dotForward = forward.dot(toTarget);
         boolean isLookingAt = dotForward > 0.85;
 
         if (dist < 10.0 && isLookingAt) {
-            // Close & looking at portal — show at actual position
+            // Close & looking — show at actual position
             display.teleport(targetVec.toLocation(p.getWorld()));
             display.text(MessageUtil.colorize(
-                    "&e&l⚔ &fPortal" + "\n" + distColor + (int) dist + "m"));
+                    "&e&l⚔ &fDungeon" + "\n" + distColor + (int) dist + "m"));
         } else {
             Vector right = new Vector(-forward.getZ(), 0, forward.getX()).normalize();
             if (right.lengthSquared() < 0.01) right = new Vector(1, 0, 0);
@@ -287,13 +305,15 @@ public class TrackingManager {
 
     private static class TrackingSession {
         final UUID playerId;
-        final UUID portalId;
+        final String dungeonId;
+        final Location targetLocation;
         TextDisplay hudDisplay;
         BukkitRunnable task;
 
-        TrackingSession(UUID playerId, UUID portalId, TextDisplay hudDisplay) {
+        TrackingSession(UUID playerId, String dungeonId, Location targetLocation, TextDisplay hudDisplay) {
             this.playerId = playerId;
-            this.portalId = portalId;
+            this.dungeonId = dungeonId;
+            this.targetLocation = targetLocation;
             this.hudDisplay = hudDisplay;
         }
     }

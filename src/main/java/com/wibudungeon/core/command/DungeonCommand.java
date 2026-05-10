@@ -319,13 +319,9 @@ public class DungeonCommand implements CommandExecutor, TabCompleter {
 
     private void handleTrack(Player p, String[] args) {
         if (trackingManager == null) { msg(p, "&cTracking not available!"); return; }
-        if (args.length < 2) { msg(p, "&cUsage: /wd track <portalId>"); return; }
-        try {
-            UUID portalId = UUID.fromString(args[1]);
-            trackingManager.startTracking(p, portalId);
-        } catch (IllegalArgumentException e) {
-            msg(p, "&cInvalid portal ID!");
-        }
+        if (args.length < 2) { msg(p, "&cUsage: /wd track <dungeonId>"); return; }
+        String dungeonId = args[1].toLowerCase();
+        trackingManager.startTracking(p, dungeonId);
     }
 
     private void handleUntrack(Player p) {
@@ -373,11 +369,11 @@ public class DungeonCommand implements CommandExecutor, TabCompleter {
         List<String> c = new ArrayList<>();
         if (args.length == 1) {
             // Only expose core commands in tab-complete
-            List<String> subs = Arrays.asList("create", "delete", "setup", "reload", "list", "leave", "help", "spawnportal");
+            List<String> subs = Arrays.asList("create", "delete", "setup", "reload", "list", "leave", "help", "spawnportal", "track", "untrack");
             c = subs.stream().filter(s -> s.startsWith(args[0].toLowerCase())).collect(Collectors.toList());
         } else if (args.length == 2) {
             String sub = args[0].toLowerCase();
-            if (Set.of("setup", "delete", "info", "toggle", "tp", "spawnportal", "settype", "setentry").contains(sub)) {
+            if (Set.of("setup", "delete", "info", "toggle", "tp", "spawnportal", "settype", "setentry", "track").contains(sub)) {
                 c = configManager.getDungeons().keySet().stream()
                         .filter(s -> s.startsWith(args[1].toLowerCase()))
                         .collect(Collectors.toList());
