@@ -66,9 +66,20 @@ public class RewardChestManager implements Listener {
             if (chestLoc != null) {
                 usedLocs.add(chestLoc);
                 List<ItemStack> rolledItems = bundle.rollItems();
-                if (!rolledItems.isEmpty()) {
-                    dropChestWithItems(chestLoc, rolledItems, instanceId);
+
+                // v1.0.9: Guarantee at least 1 item so chests are never empty
+                if (rolledItems.isEmpty()) {
+                    List<ItemStack> allItems = bundle.getAllItems();
+                    if (!allItems.isEmpty()) {
+                        // Pick a random guaranteed item from the bundle
+                        rolledItems.add(allItems.get(ThreadLocalRandom.current().nextInt(allItems.size())).clone());
+                    } else {
+                        // Absolute fallback — gold ingot
+                        rolledItems.add(new ItemStack(Material.GOLD_INGOT, 1));
+                    }
                 }
+
+                dropChestWithItems(chestLoc, rolledItems, instanceId);
             }
         }
     }

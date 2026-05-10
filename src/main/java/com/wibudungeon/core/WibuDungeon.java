@@ -37,7 +37,7 @@ import java.util.logging.Level;
  * - BossBar progression display
  *
  * @author WibuDev
- * @version 1.0.7
+ * @version 1.0.9
  */
 public class WibuDungeon extends JavaPlugin {
 

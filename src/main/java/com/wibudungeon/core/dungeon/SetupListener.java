@@ -147,16 +147,7 @@ public class SetupListener implements Listener {
             loc = player.getLocation();
         }
 
-        if (name.contains("Region Wand")) {
-            if (isLeft) {
-                session.setPos1(loc);
-                msg(player, "&aPos1 set at &e" + formatLoc(loc));
-            } else if (isRight) {
-                session.setPos2(loc);
-                msg(player, "&aPos2 set at &e" + formatLoc(loc));
-            }
-
-        } else if (name.contains("Start Point Tool") && isRight) {
+        if (name.contains("Start Point Tool") && isRight) {
             if (player.isSneaking() && session.isStatic()) {
                 session.setEntryPoint(loc);
                 msg(player, "&d⚡ Static entry point set at &e" + formatLoc(loc));
@@ -267,6 +258,17 @@ public class SetupListener implements Listener {
         }
     }
 
+    /**
+     * v1.0.9: Block item pickup during setup mode.
+     */
+    @EventHandler
+    public void onItemPickup(org.bukkit.event.entity.EntityPickupItemEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+        if (setupManager.isInSetup(player.getUniqueId())) {
+            event.setCancelled(true);
+        }
+    }
+
     // =========================================================================
     // GUI CLICK ROUTING
     // =========================================================================
@@ -279,6 +281,13 @@ public class SetupListener implements Listener {
         // Protect hotbar from being moved
         if (event.getClickedInventory() != null
                 && event.getClickedInventory().equals(player.getInventory())) {
+            event.setCancelled(true);
+            return;
+        }
+
+        // v1.0.9: Block shift-clicking items from containers into player inventory
+        if (event.isShiftClick() && event.getClickedInventory() != null
+                && !event.getClickedInventory().equals(player.getInventory())) {
             event.setCancelled(true);
             return;
         }

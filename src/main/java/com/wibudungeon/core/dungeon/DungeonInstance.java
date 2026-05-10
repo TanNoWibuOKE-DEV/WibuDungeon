@@ -43,6 +43,7 @@ public class DungeonInstance {
     private BukkitTask timerTask;
     private int timeRemaining;
     private int waveCountdown = -1; // -1 means no countdown active
+    private final int totalWaves; // v1.0.9: cached at creation, never changes mid-run
     private Runnable onComplete;
     private Runnable onFail;
 
@@ -52,6 +53,9 @@ public class DungeonInstance {
         this.plugin = plugin;
         this.configManager = configManager;
         this.timeRemaining = configManager.getDungeonMaxTime();
+
+        // v1.0.9: Cache total waves at creation using per-dungeon count first
+        this.totalWaves = configManager.getDungeonTotalWaves(dungeon.getId());
 
         this.bossBar = BossBar.bossBar(
                 MessageUtil.colorize("&e&lPreparing Dungeon..."),
@@ -229,7 +233,6 @@ public class DungeonInstance {
         if (names.isEmpty()) return;
 
         int waveNum = currentWaveIndex + 1;
-        int totalWaves = configManager.getWaveSet(dungeon.getWaveSet()).size();
         int timeTaken = configManager.getDungeonMaxTime() - timeRemaining;
         int mins = timeTaken / 60;
         int secs = timeTaken % 60;
@@ -338,7 +341,6 @@ public class DungeonInstance {
      */
     public void updateBossBar(Wave wave) {
         if (wave == null) return;
-        int totalWaves = configManager.getWaveSet(dungeon.getWaveSet()).size();
         int mins = timeRemaining / 60;
         int secs = timeRemaining % 60;
         String timeStr = String.format("%02d:%02d", mins, secs);

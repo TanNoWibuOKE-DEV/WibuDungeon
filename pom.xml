@@ -6,7 +6,7 @@
 
     <groupId>com.wibudungeon</groupId>
     <artifactId>WibuDungeon</artifactId>
-    <version>1.0.7</version>
+    <version>1.0.9</version>
     <packaging>jar</packaging>
 
     <name>WibuDungeon</name>
@@ -26,6 +26,10 @@
             <id>lumine-repo</id>
             <url>https://mvn.lumine.io/repository/maven-public/</url>
         </repository>
+        <repository>
+            <id>enginehub-maven</id>
+            <url>https://maven.enginehub.org/repo/</url>
+        </repository>
     </repositories>
 
     <dependencies>
@@ -39,6 +43,12 @@
             <groupId>io.lumine</groupId>
             <artifactId>Mythic-Dist</artifactId>
             <version>5.6.2</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.sk89q.worldedit</groupId>
+            <artifactId>worldedit-bukkit</artifactId>
+            <version>7.3.0</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>

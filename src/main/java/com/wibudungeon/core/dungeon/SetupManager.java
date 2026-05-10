@@ -340,13 +340,9 @@ public class SetupManager {
     }
 
     private void giveHotbarTools(Player player) {
-        // Slot 0: Region Wand
-        player.getInventory().setItem(0, new ItemBuilder(Material.GOLDEN_AXE)
-                .name("&6&l⚒ Region Wand")
-                .lore("&7", "&e  Left-click &7→ Set Pos1", "&e  Right-click &7→ Set Pos2", "&7")
-                .glow().build());
+        // v1.0.9: Region Wand removed — region is set via WorldEdit at /wd create time
 
-        // Slot 1: Start Point Tool (with entry point for STATIC)
+        // Slot 0: Start Point Tool (with entry point for STATIC)
         SetupSession session = activeSessions.get(player.getUniqueId());
         boolean isStatic = session != null && session.isStatic();
         List<String> startLore = new java.util.ArrayList<>();
@@ -356,13 +352,13 @@ public class SetupManager {
             startLore.add("&d  Shift+Right-click &7→ Set entry point");
         }
         startLore.add("&7");
-        player.getInventory().setItem(1, new ItemBuilder(Material.ENDER_PEARL)
+        player.getInventory().setItem(0, new ItemBuilder(Material.ENDER_PEARL)
                 .name("&d&l⊕ Start Point Tool")
                 .lore(startLore.toArray(new String[0]))
                 .glow().build());
 
-        // Slot 2: Mob Spawn Tool
-        player.getInventory().setItem(2, new ItemBuilder(Material.ZOMBIE_HEAD)
+        // Slot 1: Mob Spawn Tool
+        player.getInventory().setItem(1, new ItemBuilder(Material.ZOMBIE_HEAD)
                 .name("&c&l☠ Mob Spawn Tool")
                 .lore("&7",
                       "&e  Right-click &7→ Add mob spawn for current wave",
@@ -372,8 +368,8 @@ public class SetupManager {
                       "&7")
                 .glow().build());
 
-        // Slot 3: Boss Spawn Tool
-        player.getInventory().setItem(3, new ItemBuilder(Material.BLAZE_ROD)
+        // Slot 2: Boss Spawn Tool
+        player.getInventory().setItem(2, new ItemBuilder(Material.BLAZE_ROD)
                 .name("&4&l🔥 Boss Spawn Tool")
                 .lore("&7",
                       "&e  Right-click &7→ Set boss spawn for current wave",
@@ -383,26 +379,26 @@ public class SetupManager {
                       "&7")
                 .glow().build());
 
-        // Slot 4: Save Wave Tool
-        player.getInventory().setItem(4, new ItemBuilder(Material.NETHER_STAR)
+        // Slot 3: Save Wave Tool
+        player.getInventory().setItem(3, new ItemBuilder(Material.NETHER_STAR)
                 .name("&e&l⭐ Save Wave Tool")
                 .lore("&7", "&e  Right-click &7→ Save current wave & advance to next", "&7")
                 .glow().build());
 
-        // Slot 5: Manage Wave Tool
-        player.getInventory().setItem(5, new ItemBuilder(Material.BOOK)
+        // Slot 4: Manage Wave Tool
+        player.getInventory().setItem(4, new ItemBuilder(Material.BOOK)
                 .name("&b&l📖 Manage Wave Tool")
                 .lore("&7", "&e  Right-click &7→ Open Wave Management GUI", "&7")
                 .glow().build());
 
-        // Slot 6: Save Dungeon Tool
-        player.getInventory().setItem(6, new ItemBuilder(Material.EMERALD_BLOCK)
+        // Slot 5: Save Dungeon Tool
+        player.getInventory().setItem(5, new ItemBuilder(Material.EMERALD_BLOCK)
                 .name("&a&l✅ Save Dungeon Tool")
                 .lore("&7", "&a  Right-click &7→ Save dungeon and finish", "&7")
                 .glow().build());
 
-        // Slot 7: Exit Setup Tool
-        player.getInventory().setItem(7, new ItemBuilder(Material.BARRIER)
+        // Slot 6: Exit Setup Tool
+        player.getInventory().setItem(6, new ItemBuilder(Material.BARRIER)
                 .name("&c&l❌ Exit Setup Tool")
                 .lore("&7", "&c  Right-click &7→ Exit without saving", "&7")
                 .build());

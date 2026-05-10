@@ -846,4 +846,30 @@ public class ConfigManager {
             plugin.getLogger().log(Level.SEVERE, "Failed to save rewards.yml", e);
         }
     }
+
+    /**
+     * v1.0.9: Get the total number of waves for a dungeon.
+     * Checks per-dungeon wave entries first, then falls back to the global wave set.
+     * This ensures BossBar shows the correct total (e.g. "Wave 3/12" not "Wave 3/5").
+     */
+    public int getDungeonTotalWaves(String dungeonId) {
+        // First check per-dungeon waves stored in the dungeon file
+        File file = new File(plugin.getDataFolder(), "dungeons/" + dungeonId + ".yml");
+        if (file.exists()) {
+            org.bukkit.configuration.file.FileConfiguration config =
+                    org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(file);
+            org.bukkit.configuration.ConfigurationSection wavesSection = config.getConfigurationSection("waves");
+            if (wavesSection != null && !wavesSection.getKeys(false).isEmpty()) {
+                return wavesSection.getKeys(false).size();
+            }
+        }
+
+        // Fall back to global wave set
+        Dungeon dungeon = getDungeon(dungeonId);
+        if (dungeon != null) {
+            List<Wave> waves = getWaveSet(dungeon.getWaveSet());
+            if (!waves.isEmpty()) return waves.size();
+        }
+        return 1; // absolute fallback
+    }
 }

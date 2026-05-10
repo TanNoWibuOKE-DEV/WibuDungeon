@@ -103,7 +103,7 @@ public class DungeonCommand implements CommandExecutor, TabCompleter {
 
     private void sendHelp(CommandSender s) {
         s.sendMessage(MessageUtil.colorize("&8&m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"));
-        s.sendMessage(MessageUtil.colorize("  &6&lWibuDungeon &ev1.0.8"));
+        s.sendMessage(MessageUtil.colorize("  &6&lWibuDungeon &ev1.0.9"));
         s.sendMessage(MessageUtil.colorize("&8&m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"));
         s.sendMessage(MessageUtil.colorize("&a&l✦ Setup:"));
         s.sendMessage(MessageUtil.colorize("  &a/wd create &7[static|dynamic] <id>"));
@@ -160,16 +160,32 @@ public class DungeonCommand implements CommandExecutor, TabCompleter {
             msg(p, "&cDungeon &e" + id + " &calready exists!");
             return;
         }
+
+        // v1.0.9: Read region from WorldEdit/FAWE selection
+        if (!com.wibudungeon.core.util.WorldEditHook.isAvailable()) {
+            msg(p, "&cWorldEdit or FastAsyncWorldEdit is required!");
+            msg(p, "&7Install WorldEdit/FAWE and select a region with the wooden axe.");
+            return;
+        }
+
+        org.bukkit.Location[] selection = com.wibudungeon.core.util.WorldEditHook.getSelection(p);
+        if (selection == null) {
+            msg(p, "&c⚠ No WorldEdit selection found!");
+            msg(p, "&7Use the &ewooden axe &7to select pos1 (left-click) and pos2 (right-click) first.");
+            return;
+        }
+
         Dungeon d = new Dungeon(id);
         d.setName("&e" + id);
         d.setType(type);
         d.setWorld(p.getWorld().getName());
-        d.setPos1(p.getLocation());
-        d.setPos2(p.getLocation());
+        d.setPos1(selection[0]);
+        d.setPos2(selection[1]);
         d.setSpawnPoint(p.getLocation());
         if (type == DungeonType.STATIC) d.setEntryPoint(p.getLocation());
         configManager.saveDungeon(d);
-        msg(p, "&aDungeon &e" + id + " &a[" + type.name() + "] created! Use &e/wd setup " + id + " &ato configure.");
+        msg(p, "&aDungeon &e" + id + " &a[" + type.name() + "] created with WorldEdit region!");
+        msg(p, "&7Use &e/wd setup " + id + " &7to configure waves and spawns.");
     }
 
     private void handleDelete(Player p, String[] args) {
