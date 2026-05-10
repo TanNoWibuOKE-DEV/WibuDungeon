@@ -15,6 +15,7 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
@@ -31,6 +32,7 @@ public class PortalListener implements Listener {
     private final DungeonManager dungeonManager;
     private final WaveManager waveManager;
     private final JoinGUI joinGUI;
+    private TrackingManager trackingManager; // v1.0.9: for per-player HUD visibility
 
     // Cooldown to prevent GUI spam (3 seconds)
     private final Map<UUID, Long> portalCooldowns = new HashMap<>();
@@ -42,6 +44,11 @@ public class PortalListener implements Listener {
         this.dungeonManager = dungeonManager;
         this.waveManager = waveManager;
         this.joinGUI = joinGUI;
+    }
+
+    /** v1.0.9: Set tracking manager for per-player HUD visibility on join. */
+    public void setTrackingManager(TrackingManager trackingManager) {
+        this.trackingManager = trackingManager;
     }
 
     /**
@@ -161,6 +168,14 @@ public class PortalListener implements Listener {
         DungeonInstance instance = dungeonManager.getPlayerInstance(player.getUniqueId());
         if (instance != null && instance.getSpectators().contains(player.getUniqueId())) {
             event.setCancelled(true);
+        }
+    }
+
+    /** v1.0.9: Hide existing tracking HUD entities from joining players. */
+    @EventHandler
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        if (trackingManager != null) {
+            trackingManager.hideAllFrom(event.getPlayer());
         }
     }
 }

@@ -202,6 +202,7 @@ public class WibuDungeon extends JavaPlugin {
         // Portal interaction and combat listener
         PortalListener portalListener = new PortalListener(
                 portalManager, dungeonManager, waveManager, joinGUI);
+        portalListener.setTrackingManager(trackingManager); // v1.0.9: per-player HUD visibility
         registerListener(portalListener);
 
         // GUI click handler
