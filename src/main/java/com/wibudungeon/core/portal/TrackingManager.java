@@ -7,21 +7,32 @@ import org.bukkit.entity.*;
 import org.bukkit.inventory.meta.FireworkMeta;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
+import org.joml.AxisAngle4f;
+import org.joml.Vector3f;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
 /**
- * GPS Tracking System v1.0.6 — ArmorStand + TextDisplay + velocity-based movement.
+ * Portal Tracking HUD System v1.0.9
  *
- * Behavior:
- * - Spawns invisible ArmorStand near player with TextDisplay passenger
- * - Entity moves toward portal using velocity vectors
- * - TextDisplay shows direction + distance, updates continuously
- * - Removes on arrival (within 10 blocks), portal disappearance, or player cancel
- * - One tracker per player enforced
+ * Based on the Waypoint HUD approach — spawns a floating TextDisplay
+ * that follows the player's camera view and shows directional arrows
+ * pointing toward the tracked portal with distance display.
+ *
+ * Features:
+ * - Screen-space projection using forward/right/up camera vectors
+ * - Directional arrows (⇒ ⇗ ⇑ ⇖ ⇐ ⇙ ⇓ ⇘) with distance
+ * - When looking directly at portal, shows marker at portal location
+ * - Color-coded distance indicator (green/yellow/orange/red)
+ * - Smooth teleport with interpolation (setTeleportDuration)
+ * - Auto-complete on arrival, auto-cancel on portal expiry
+ * - Per-player TextDisplay entity (cleaned up on stop/quit)
+ *
+ * @since v1.0.9
  */
 public class TrackingManager {
 
@@ -30,10 +41,12 @@ public class TrackingManager {
     private final PortalManager portalManager;
     private final Map<UUID, TrackingSession> activeSessions = new HashMap<>();
 
-    private static final double GPS_SPEED = 0.35;       // Blocks per tick velocity magnitude
-    private static final double ARRIVAL_DISTANCE = 10.0; // Distance to consider "arrived"
-    private static final double LEASH_DISTANCE = 15.0;   // Max distance before GPS teleports to player
-    private static final double HOVER_HEIGHT = 2.5;      // Height above ground for GPS entity
+    // HUD positioning constants
+    private static final double HUD_FORWARD = 2.0;        // Distance in front of eyes
+    private static final double HUD_HORIZONTAL = 3.5;      // Max horizontal screen offset
+    private static final double HUD_VERTICAL = 2.5;        // Max vertical screen offset
+    private static final float HUD_SCALE = 1.2f;           // TextDisplay scale
+    private static final double ARRIVAL_DISTANCE = 10.0;   // Distance to auto-complete
 
     public TrackingManager(Plugin plugin, ConfigManager configManager, PortalManager portalManager) {
         this.plugin = plugin;
@@ -42,7 +55,7 @@ public class TrackingManager {
     }
 
     /**
-     * Start tracking a portal for a player using GPS entity system.
+     * Start tracking a portal — spawns a HUD TextDisplay that follows the player.
      */
     public void startTracking(Player player, UUID portalId) {
         // Prevent duplicate — clean up old session first
@@ -56,18 +69,21 @@ public class TrackingManager {
             return;
         }
 
-        MessageUtil.send(player, configManager.getPrefix() + "&a⏳ GPS Tracker activated!");
-        MessageUtil.send(player, configManager.getPrefix() + "&7Follow the floating guide to the portal.");
+        Location portalCenter = portal.getCenter();
+        if (portalCenter == null || portalCenter.getWorld() == null) return;
+
+        MessageUtil.send(player, configManager.getPrefix() + "&a⏳ Portal Tracker activated!");
+        MessageUtil.send(player, configManager.getPrefix() + "&7Follow the &e⇔ &7marker to the portal.");
         MessageUtil.send(player, configManager.getPrefix() + "&7Use &e/wd untrack &7to stop tracking.");
 
-        Location portalCenter = portal.getCenter();
-        if (portalCenter == null) return;
+        // Spawn HUD display
+        TextDisplay hud = spawnHUD(player);
 
         // Create session
-        TrackingSession session = new TrackingSession(player.getUniqueId(), portalId);
+        TrackingSession session = new TrackingSession(player.getUniqueId(), portalId, hud);
         activeSessions.put(player.getUniqueId(), session);
 
-        // Start GPS update task
+        // Start per-tick update task
         session.task = new BukkitRunnable() {
             int ticks = 0;
 
@@ -80,7 +96,7 @@ public class TrackingManager {
                     return;
                 }
 
-                // Check portal validity every 40 ticks (2 seconds)
+                // Check portal validity every 2 seconds
                 if (ticks++ % 40 == 0) {
                     if (portal.isExpired() || !portal.isValid()) {
                         MessageUtil.send(p, configManager.getPrefix() + "&cThe tracked portal has disappeared!");
@@ -90,58 +106,161 @@ public class TrackingManager {
                     }
                 }
 
-
-                Location portalCenter = portal.getCenter();
-                if (portalCenter == null || portalCenter.getWorld() == null) {
+                Location target = portal.getCenter();
+                if (target == null || target.getWorld() == null) {
                     cleanupSession(player.getUniqueId());
                     cancel();
                     return;
                 }
 
                 // Different world check
-                if (!p.getWorld().equals(portalCenter.getWorld())) {
-                    p.sendActionBar(MessageUtil.colorize("&c✘ Portal is in a different world!"));
+                if (!p.getWorld().equals(target.getWorld())) {
+                    if (session.hudDisplay != null && !session.hudDisplay.isDead()) {
+                        session.hudDisplay.text(
+                                MessageUtil.colorize("&c✘ Different World"));
+                    }
                     return;
                 }
 
-                Location playerLoc = p.getLocation();
-                double distance = playerLoc.distance(portalCenter);
-                String distStr = String.format("%.1f", distance);
-
-                // Check arrival
-                if (distance <= ARRIVAL_DISTANCE) {
-                    cancel();
-                    cleanupSession(player.getUniqueId());
-                    MessageUtil.send(p, configManager.getPrefix() + "&a&l✔ You've reached the dungeon portal!");
-                    spawnFirework(p.getLocation());
-                    p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f);
-                    return;
-                }
-
-                // Calculate direction arrow
-                Vector dirFromPlayer = portalCenter.toVector().subtract(playerLoc.toVector());
-                double angle = Math.toDegrees(Math.atan2(dirFromPlayer.getZ(), dirFromPlayer.getX())) - 90;
-                double yaw = playerLoc.getYaw();
-                double relative = (angle - yaw + 540) % 360 - 180;
-                String arrow = getDirectionArrow(relative);
-
-                // Color based on distance
-                String color;
-                if (distance <= 20) color = "&a";
-                else if (distance <= 50) color = "&e";
-                else if (distance <= 100) color = "&6";
-                else color = "&c";
-
-                // Update ActionBar
-                p.sendActionBar(MessageUtil.colorize(
-                        "&e⏳ Portal " + arrow + " &8| " + color + distStr + " blocks"));
+                updateHUD(p, session, target);
             }
         };
-        session.task.runTaskTimer(plugin, 0L, 5L); // Update distance every 5 ticks
+        session.task.runTaskTimer(plugin, 0L, 1L); // Every tick for smooth tracking
     }
 
     /**
-     * Stop tracking for a player and clean up GPS entities.
+     * Core HUD update — projects portal position onto player's screen space.
+     */
+    private void updateHUD(Player player, TrackingSession session, Location targetLoc) {
+        Location eye = player.getEyeLocation();
+        Location targetCenter = targetLoc.clone().add(0, 1.5, 0);
+        double distance = eye.distance(targetCenter);
+
+        // Respawn HUD if dead
+        if (session.hudDisplay == null || session.hudDisplay.isDead()) {
+            session.hudDisplay = spawnHUD(player);
+        }
+
+        TextDisplay display = session.hudDisplay;
+
+        // Check arrival
+        if (distance <= ARRIVAL_DISTANCE) {
+            cleanupSession(player.getUniqueId());
+            MessageUtil.send(player, configManager.getPrefix() + "&a&l✔ You've reached the dungeon portal!");
+            spawnFirework(player.getLocation());
+            player.playSound(player.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f);
+            return;
+        }
+
+        // Distance color
+        String distColor;
+        if (distance <= 20) distColor = "&a";
+        else if (distance <= 50) distColor = "&e";
+        else if (distance <= 100) distColor = "&6";
+        else distColor = "&c";
+
+        String distStr = (int) distance + "m";
+
+        // Camera vectors
+        Vector forward = eye.getDirection().normalize();
+        Vector toTarget = targetCenter.toVector().subtract(eye.toVector()).normalize();
+        double dotForward = forward.dot(toTarget);
+
+        // Right vector (perpendicular to forward on horizontal plane)
+        Vector right = new Vector(-forward.getZ(), 0, forward.getX()).normalize();
+        if (right.lengthSquared() < 0.01) right = new Vector(1, 0, 0);
+
+        // Up vector (perpendicular to forward and right)
+        Vector up = forward.clone().crossProduct(right).multiply(-1).normalize();
+
+        double dotRight = right.dot(toTarget);
+        double dotUp = up.dot(toTarget);
+
+        boolean isLookingAt = dotForward > 0.85;
+
+        if (distance < 15.0 && isLookingAt) {
+            // Close and looking at it — show marker at actual portal position
+            display.teleport(targetCenter.toVector().toLocation(player.getWorld()));
+            display.text(
+                    MessageUtil.colorize("&e&l⚔ &fPortal\n" + distColor + distStr));
+        } else {
+            // Screen-space projection
+            double screenX, screenY;
+            String icon;
+
+            if (dotForward > 0) {
+                // Target is in front — project onto screen
+                screenX = dotRight / dotForward;
+                screenY = dotUp / dotForward;
+
+                if (Math.abs(screenX) < 0.3 && Math.abs(screenY) < 0.3) {
+                    icon = "⇔";  // Looking roughly at it
+                } else {
+                    icon = getArrow(Math.atan2(screenY, screenX));
+                }
+            } else {
+                // Target is behind — show arrow at screen edge
+                double len = Math.sqrt(dotRight * dotRight + dotUp * dotUp);
+                if (len < 0.001) len = 1;
+                screenX = (dotRight / len);
+                screenY = (dotUp / len);
+                icon = getArrow(Math.atan2(screenY, screenX));
+            }
+
+            // Clamp to screen bounds
+            screenX = Math.max(-1.3, Math.min(1.3, screenX));
+            screenY = Math.max(-0.9, Math.min(0.9, screenY));
+
+            // Calculate HUD world position
+            Location hudPos = eye.clone()
+                    .add(forward.clone().multiply(HUD_FORWARD))
+                    .add(right.clone().multiply(screenX * HUD_HORIZONTAL))
+                    .add(up.clone().multiply(screenY * HUD_VERTICAL));
+
+            display.teleport(hudPos);
+            display.text(
+                    MessageUtil.colorize("&f" + icon + "\n" + distColor + distStr));
+        }
+    }
+
+    /**
+     * Directional arrow based on screen-space angle.
+     */
+    private String getArrow(double angle) {
+        double deg = Math.toDegrees(angle);
+        if (deg >= -22.5 && deg < 22.5) return "⇒";
+        if (deg >= 22.5 && deg < 67.5) return "⇗";
+        if (deg >= 67.5 && deg < 112.5) return "⇑";
+        if (deg >= 112.5 && deg < 157.5) return "⇖";
+        if (deg >= 157.5 || deg < -157.5) return "⇐";
+        if (deg >= -157.5 && deg < -112.5) return "⇙";
+        if (deg >= -112.5 && deg < -67.5) return "⇓";
+        if (deg >= -67.5 && deg < -22.5) return "⇘";
+        return "•";
+    }
+
+    /**
+     * Spawn the tracking HUD TextDisplay entity.
+     */
+    private TextDisplay spawnHUD(Player player) {
+        return player.getWorld().spawn(player.getEyeLocation(), TextDisplay.class, e -> {
+            e.setBillboard(Display.Billboard.CENTER);
+            e.setBrightness(new Display.Brightness(15, 15));
+            e.setTeleportDuration(2); // Smooth interpolated movement
+            e.setSeeThrough(true);
+            e.setShadowed(true);
+            e.setBackgroundColor(Color.fromARGB(100, 0, 0, 0));
+            e.setPersistent(false);
+            e.setTransformation(new Transformation(
+                    new Vector3f(), new AxisAngle4f(),
+                    new Vector3f(HUD_SCALE, HUD_SCALE, HUD_SCALE),
+                    new AxisAngle4f()
+            ));
+        });
+    }
+
+    /**
+     * Stop tracking for a player and clean up HUD entity.
      */
     public void stopTracking(UUID playerId) {
         cleanupSession(playerId);
@@ -164,7 +283,7 @@ public class TrackingManager {
     }
 
     /**
-     * Clean up a single tracking session — remove entities, cancel task.
+     * Clean up a single tracking session — remove HUD entity, cancel task.
      */
     private void cleanupSession(UUID playerId) {
         TrackingSession session = activeSessions.remove(playerId);
@@ -173,9 +292,13 @@ public class TrackingManager {
         if (session.task != null) {
             session.task.cancel();
         }
+        if (session.hudDisplay != null && !session.hudDisplay.isDead()) {
+            session.hudDisplay.remove();
+        }
     }
 
     private void spawnFirework(Location loc) {
+        if (loc.getWorld() == null) return;
         Firework fw = loc.getWorld().spawn(loc, Firework.class);
         FireworkMeta meta = fw.getFireworkMeta();
         meta.addEffect(FireworkEffect.builder()
@@ -190,29 +313,19 @@ public class TrackingManager {
         Bukkit.getScheduler().runTaskLater(plugin, fw::detonate, 2L);
     }
 
-    private String getDirectionArrow(double relativeAngle) {
-        if (relativeAngle >= -22.5 && relativeAngle < 22.5) return "⬆";
-        if (relativeAngle >= 22.5 && relativeAngle < 67.5) return "⬈";
-        if (relativeAngle >= 67.5 && relativeAngle < 112.5) return "➡";
-        if (relativeAngle >= 112.5 && relativeAngle < 157.5) return "⬊";
-        if (relativeAngle >= 157.5 || relativeAngle < -157.5) return "⬇";
-        if (relativeAngle >= -157.5 && relativeAngle < -112.5) return "⬋";
-        if (relativeAngle >= -112.5 && relativeAngle < -67.5) return "⬅";
-        if (relativeAngle >= -67.5 && relativeAngle < -22.5) return "⬉";
-        return "⬆";
-    }
-
     /**
-     * Tracking session state
+     * Tracking session state — holds the HUD entity and task reference.
      */
     private static class TrackingSession {
         final UUID playerId;
         final UUID portalId;
+        TextDisplay hudDisplay;
         BukkitRunnable task;
 
-        TrackingSession(UUID playerId, UUID portalId) {
+        TrackingSession(UUID playerId, UUID portalId, TextDisplay hudDisplay) {
             this.playerId = playerId;
             this.portalId = portalId;
+            this.hudDisplay = hudDisplay;
         }
     }
 }
