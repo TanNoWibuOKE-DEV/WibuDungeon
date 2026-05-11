@@ -204,18 +204,21 @@ public class PortalManager {
         int x = portal.getLocation().getBlockX();
         int y = portal.getLocation().getBlockY();
         int z = portal.getLocation().getBlockZ();
+        String worldName = world.getName();
 
         // Title
         Component title = Component.text("⚔ DUNGEON PORTAL ⚔")
                 .color(NamedTextColor.GOLD).decorate(TextDecoration.BOLD);
-        Component subtitle = Component.text("x:" + x + " y:" + y + " z:" + z)
+        Component subtitle = Component.text(worldName + " | x:" + x + " y:" + y + " z:" + z)
                 .color(NamedTextColor.YELLOW);
 
-        // Clickable chat message
+        // Clickable chat message — includes world name so cross-world players know where
         Component coordText = Component.text("A Dungeon Portal has spawned at ")
                 .color(NamedTextColor.GOLD)
                 .append(Component.text("(" + x + ", " + y + ", " + z + ") ")
-                        .color(NamedTextColor.YELLOW));
+                        .color(NamedTextColor.YELLOW))
+                .append(Component.text("[" + worldName + "] ")
+                        .color(NamedTextColor.GRAY));
 
         Component trackButton = Component.text("[CLICK TO TRACK]")
                 .color(NamedTextColor.GREEN)
@@ -226,10 +229,15 @@ public class PortalManager {
 
         Component fullMessage = coordText.append(trackButton);
 
-        for (Player player : world.getPlayers()) {
-            player.showTitle(Title.title(title, subtitle,
-                    Title.Times.times(Duration.ofMillis(500), Duration.ofSeconds(4), Duration.ofMillis(1000))));
-            player.playSound(player.getLocation(), Sound.ENTITY_ENDER_DRAGON_DEATH, 1.0f, 1.2f);
+        // v1.0.9: Announce to ALL online players, not just same world
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            // Title + sound only for same-world players
+            if (player.getWorld().equals(world)) {
+                player.showTitle(Title.title(title, subtitle,
+                        Title.Times.times(Duration.ofMillis(500), Duration.ofSeconds(4), Duration.ofMillis(1000))));
+                player.playSound(player.getLocation(), Sound.ENTITY_ENDER_DRAGON_DEATH, 1.0f, 1.2f);
+            }
+            // Chat message for everyone
             player.sendMessage(fullMessage);
         }
     }

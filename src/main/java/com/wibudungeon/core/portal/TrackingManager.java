@@ -98,9 +98,12 @@ public class TrackingManager {
                     return;
                 }
 
-                if (!p.getWorld().getName().equals(session.targetLocation.getWorld().getName())) {
-                    removeHUD(session);
-                    return;
+                // v1.0.9: HUD entity must be in the same world as the player
+                // If player changed world, respawn HUD in current world
+                if (session.hudDisplay != null && !session.hudDisplay.isDead()
+                        && !session.hudDisplay.getWorld().equals(p.getWorld())) {
+                    session.hudDisplay.remove();
+                    session.hudDisplay = null;
                 }
 
                 updateHUD(p, session);
@@ -141,10 +144,8 @@ public class TrackingManager {
      */
     private void updateHUD(Player p, TrackingSession session) {
         Location eye = p.getEyeLocation();
-        Location targetCenter = session.targetLocation.clone();
-        targetCenter.setY(targetCenter.getY() + 1.5);
-        double dist = eye.distance(targetCenter);
 
+        // Respawn HUD if dead (also handles world change)
         TextDisplay display = session.hudDisplay;
         if (display == null || display.isDead()) {
             display = spawnHUD(p);
@@ -159,6 +160,22 @@ public class TrackingManager {
                 }
             }, 2L);
         }
+
+        // v1.0.9: Cross-world handling — show "Different World" HUD
+        boolean sameWorld = p.getWorld().getName().equals(
+                session.targetLocation.getWorld().getName());
+        if (!sameWorld) {
+            String worldName = session.targetLocation.getWorld().getName();
+            Location hudPos = eye.clone().add(eye.getDirection().normalize().multiply(HUD_FORWARD));
+            display.teleport(hudPos);
+            display.text(MessageUtil.colorize(
+                    "&e&l⚔ &fDungeon\n&c✘ World: &f" + worldName));
+            return;
+        }
+
+        Location targetCenter = session.targetLocation.clone();
+        targetCenter.setY(targetCenter.getY() + 1.5);
+        double dist = eye.distance(targetCenter);
 
         // Arrival check
         if (dist <= ARRIVAL_DISTANCE) {
