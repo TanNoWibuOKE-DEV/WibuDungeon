@@ -9,6 +9,9 @@ portal:
   # Worlds where portals can spawn
   worlds:
     - world
+  # Worlds where portals will NEVER spawn
+  blacklist-worlds:
+    - world_the_end
   # Spawn interval in seconds
   spawn-interval: 300
   # How long a portal stays before disappearing (seconds)
@@ -23,6 +26,9 @@ portal:
   max-active: 3
   # Announce portal spawn to all players
   announce: true
+  # Cooldown (seconds) before portal GUI can reopen for same player
+  # Prevents spam when walking near portal
+  gui-cooldown: 3
 
 # Dungeon Settings
 dungeon:

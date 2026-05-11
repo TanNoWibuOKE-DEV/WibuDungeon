@@ -132,6 +132,16 @@ public class ConfigManager {
         return mainConfig.getBoolean("portal.announce", true);
     }
 
+    /** v1.0.9: Worlds where portals should NEVER spawn. */
+    public List<String> getPortalBlacklistWorlds() {
+        return mainConfig.getStringList("portal.blacklist-worlds");
+    }
+
+    /** v1.0.9: GUI cooldown in seconds (prevents spam when walking near portal). */
+    public int getPortalGuiCooldown() {
+        return mainConfig.getInt("portal.gui-cooldown", 3);
+    }
+
     public int getDungeonMaxTime() {
         return mainConfig.getInt("dungeon.max-time", 600);
     }

@@ -61,9 +61,16 @@ public class PortalManager {
     private void trySpawnPortal() {
         if (activePortals.size() >= configManager.getMaxActivePortals()) return;
         List<String> worldNames = configManager.getPortalWorlds();
+        List<String> blacklist = configManager.getPortalBlacklistWorlds();
         if (worldNames.isEmpty()) return;
 
-        String worldName = worldNames.get(ThreadLocalRandom.current().nextInt(worldNames.size()));
+        // v1.0.9: Filter out blacklisted worlds
+        List<String> validWorlds = worldNames.stream()
+                .filter(w -> !blacklist.contains(w))
+                .toList();
+        if (validWorlds.isEmpty()) return;
+
+        String worldName = validWorlds.get(ThreadLocalRandom.current().nextInt(validWorlds.size()));
         World world = Bukkit.getWorld(worldName);
         if (world == null) return;
 

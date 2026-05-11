@@ -49,7 +49,8 @@ public class TrackingManager {
 
     /**
      * Start tracking a dungeon by its ID.
-     * Tracks the dungeon's region center — works even without a spawned portal.
+     * v1.0.9: Tracks the nearest ACTIVE PORTAL for this dungeon (any world).
+     * If no portal is active, falls back to dungeon region center.
      */
     public void startTracking(Player player, String dungeonId) {
         if (isTracking(player.getUniqueId())) {
@@ -62,15 +63,21 @@ public class TrackingManager {
             return;
         }
 
-        // Target = center of dungeon region
-        Location target = getDungeonCenter(dungeon);
+        // v1.0.9: Find the nearest active portal for this dungeon (any world)
+        Location target = findPortalTarget(dungeonId, player);
         if (target == null) {
-            MessageUtil.send(player, configManager.getPrefix() + "&cDungeon has no valid location!");
+            // Fallback: dungeon region center
+            target = getDungeonCenter(dungeon);
+        }
+        if (target == null) {
+            MessageUtil.send(player, configManager.getPrefix() + "&cNo portal or dungeon location found!");
             return;
         }
 
-        MessageUtil.send(player, configManager.getPrefix() + "&a⏳ Tracking dungeon &e" + dungeonId + "&a!");
-        MessageUtil.send(player, configManager.getPrefix() + "&7Follow the &e⇔ &7marker to the dungeon.");
+        String worldName = target.getWorld() != null ? target.getWorld().getName() : "?";
+        MessageUtil.send(player, configManager.getPrefix() + "&a⏳ Tracking portal for &e" + dungeonId + "&a!");
+        MessageUtil.send(player, configManager.getPrefix() + "&7World: &f" + worldName
+                + " &7| Follow the &e⇔ &7marker.");
         MessageUtil.send(player, configManager.getPrefix() + "&7Use &e/wd untrack &7to stop.");
 
         TextDisplay hud = spawnHUD(player);
@@ -98,8 +105,13 @@ public class TrackingManager {
                     return;
                 }
 
-                // v1.0.9: HUD entity must be in the same world as the player
-                // If player changed world, respawn HUD in current world
+                // v1.0.9: Update target to nearest portal (may have spawned/despawned)
+                Location newTarget = findPortalTarget(dungeonId, p);
+                if (newTarget != null) {
+                    session.targetLocation = newTarget;
+                }
+
+                // HUD entity must be in the same world as the player
                 if (session.hudDisplay != null && !session.hudDisplay.isDead()
                         && !session.hudDisplay.getWorld().equals(p.getWorld())) {
                     session.hudDisplay.remove();
@@ -121,12 +133,42 @@ public class TrackingManager {
             MessageUtil.send(player, configManager.getPrefix() + "&cPortal not found!");
             return;
         }
-        // Find dungeon ID from portal and track by dungeon
         startTracking(player, portal.getDungeonId());
     }
 
     /**
-     * Get dungeon center (midpoint of pos1 + pos2).
+     * Find the nearest active portal for a dungeon (searches all worlds).
+     */
+    private Location findPortalTarget(String dungeonId, Player player) {
+        Location playerLoc = player.getLocation();
+        DungeonPortal best = null;
+        double bestDist = Double.MAX_VALUE;
+
+        for (DungeonPortal portal : portalManager.getActivePortals()) {
+            if (!portal.getDungeonId().equals(dungeonId)) continue;
+            if (portal.isExpired() || !portal.isValid()) continue;
+
+            Location center = portal.getCenter();
+            if (center == null || center.getWorld() == null) continue;
+
+            // Same world — use actual distance
+            if (center.getWorld().equals(playerLoc.getWorld())) {
+                double dist = center.distanceSquared(playerLoc);
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    best = portal;
+                }
+            } else if (best == null) {
+                // Cross-world — pick first found if no same-world portal
+                best = portal;
+            }
+        }
+
+        return best != null ? best.getCenter() : null;
+    }
+
+    /**
+     * Get dungeon center (midpoint of pos1 + pos2) — fallback when no portal exists.
      */
     private Location getDungeonCenter(Dungeon dungeon) {
         Location p1 = dungeon.getPos1();
@@ -336,7 +378,7 @@ public class TrackingManager {
     private static class TrackingSession {
         final UUID playerId;
         final String dungeonId;
-        final Location targetLocation;
+        Location targetLocation; // mutable — updated dynamically to nearest portal
         TextDisplay hudDisplay;
         BukkitRunnable task;
 

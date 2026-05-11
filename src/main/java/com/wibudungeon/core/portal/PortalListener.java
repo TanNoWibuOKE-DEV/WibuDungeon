@@ -1,5 +1,6 @@
 package com.wibudungeon.core.portal;
 
+import com.wibudungeon.core.config.ConfigManager;
 import com.wibudungeon.core.dungeon.DungeonManager;
 import com.wibudungeon.core.dungeon.DungeonInstance;
 import com.wibudungeon.core.gui.JoinGUI;
@@ -32,18 +33,19 @@ public class PortalListener implements Listener {
     private final DungeonManager dungeonManager;
     private final WaveManager waveManager;
     private final JoinGUI joinGUI;
+    private final ConfigManager configManager;
     private TrackingManager trackingManager; // v1.0.9: for per-player HUD visibility
 
-    // Cooldown to prevent GUI spam (3 seconds)
+    // Cooldown to prevent GUI spam
     private final Map<UUID, Long> portalCooldowns = new HashMap<>();
-    private static final long COOLDOWN_MS = 1000;
 
     public PortalListener(PortalManager portalManager, DungeonManager dungeonManager,
-                          WaveManager waveManager, JoinGUI joinGUI) {
+                          WaveManager waveManager, JoinGUI joinGUI, ConfigManager configManager) {
         this.portalManager = portalManager;
         this.dungeonManager = dungeonManager;
         this.waveManager = waveManager;
         this.joinGUI = joinGUI;
+        this.configManager = configManager;
     }
 
     /** v1.0.9: Set tracking manager for per-player HUD visibility on join. */
@@ -65,9 +67,10 @@ public class PortalListener implements Listener {
         // Don't open if player already has an inventory open
         if (player.getOpenInventory().getType() != org.bukkit.event.inventory.InventoryType.CRAFTING) return;
 
-        // Check cooldown (1 second)
+        // Check cooldown (configurable, default 3 seconds)
+        long cooldownMs = configManager.getPortalGuiCooldown() * 1000L;
         Long lastUse = portalCooldowns.get(player.getUniqueId());
-        if (lastUse != null && System.currentTimeMillis() - lastUse < COOLDOWN_MS) return;
+        if (lastUse != null && System.currentTimeMillis() - lastUse < cooldownMs) return;
 
         // Check proximity to any portal (3 block range covers full frame)
         DungeonPortal portal = portalManager.getNearbyPortal(player.getLocation(), 3.0);
@@ -93,8 +96,9 @@ public class PortalListener implements Listener {
         Player player = event.getPlayer();
         if (dungeonManager.isInDungeon(player.getUniqueId())) return;
 
+        long cooldownMs = configManager.getPortalGuiCooldown() * 1000L;
         Long lastUse = portalCooldowns.get(player.getUniqueId());
-        if (lastUse != null && System.currentTimeMillis() - lastUse < COOLDOWN_MS) return;
+        if (lastUse != null && System.currentTimeMillis() - lastUse < cooldownMs) return;
 
         portalCooldowns.put(player.getUniqueId(), System.currentTimeMillis());
         portalManager.markPortalUsed(portal.getPortalId()); // v1.0.6: mark portal as used
