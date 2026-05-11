@@ -243,29 +243,27 @@ public class TrackingManager {
         String targetWorld = session.targetLocation.getWorld() != null
                 ? session.targetLocation.getWorld().getName() : "?";
         boolean crossWorld = !sameWorld;
-        String worldLine = crossWorld ? "\n&7" + targetWorld : "";
+        String worldLine = crossWorld ? "\n&7⌂ " + targetWorld : "";
 
-        // Cross-world: show HUD fixed in front of player
-        if (crossWorld) {
-            Location hudPos = eye.clone().add(eye.getDirection().normalize().multiply(HUD_FORWARD));
-            display.teleport(hudPos);
-            display.text(MessageUtil.colorize(
-                    "&e&l⚔ &fPortal\n" + distColor + distStr + worldLine));
-            return;
-        }
+        // === Waypoint-style screen-space projection ===
+        // For cross-world: use the target's XYZ as if it were in the player's world
+        // This preserves directional arrows correctly
+        Location projectedTarget = crossWorld
+                ? new Location(p.getWorld(), targetCenter.getX(), targetCenter.getY(), targetCenter.getZ())
+                : targetCenter;
+        double projDist = eye.distance(projectedTarget);
 
-        // === Same world: Waypoint-style screen-space projection ===
         Vector forward = eye.getDirection().normalize();
-        Vector targetVec = targetCenter.toVector();
+        Vector targetVec = projectedTarget.toVector();
         Vector toTarget = targetVec.clone().subtract(eye.toVector()).normalize();
         double dotForward = forward.dot(toTarget);
         boolean isLookingAt = dotForward > 0.85;
 
-        if (dist < 10.0 && isLookingAt) {
-            // Close & looking — show at actual position
+        if (!crossWorld && projDist < 10.0 && isLookingAt) {
+            // Close & looking — show at actual position (same world only)
             display.teleport(targetVec.toLocation(p.getWorld()));
             display.text(MessageUtil.colorize(
-                    "&e&l⚔ &fPortal" + "\n" + distColor + distStr));
+                    "&e&l⚔ &fPortal" + "\n" + distColor + distStr + worldLine));
         } else {
             Vector right = new Vector(-forward.getZ(), 0, forward.getX()).normalize();
             if (right.lengthSquared() < 0.01) right = new Vector(1, 0, 0);
@@ -300,7 +298,7 @@ public class TrackingManager {
 
             display.teleport(hudPos);
             display.text(MessageUtil.colorize(
-                    "&f" + icon + "\n" + distColor + distStr));
+                    "&f" + icon + "\n" + distColor + distStr + worldLine));
         }
     }
 
