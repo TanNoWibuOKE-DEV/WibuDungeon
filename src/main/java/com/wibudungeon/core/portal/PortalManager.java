@@ -220,7 +220,7 @@ public class PortalManager {
         Component trackButton = Component.text("[CLICK TO TRACK]")
                 .color(NamedTextColor.GREEN)
                 .decorate(TextDecoration.BOLD)
-                .clickEvent(ClickEvent.runCommand("/wd track " + portal.getPortalId().toString()))
+                .clickEvent(ClickEvent.runCommand("/wd track " + portal.getDungeonId()))
                 .hoverEvent(HoverEvent.showText(
                         Component.text("Click to track this portal!").color(NamedTextColor.AQUA)));
 
