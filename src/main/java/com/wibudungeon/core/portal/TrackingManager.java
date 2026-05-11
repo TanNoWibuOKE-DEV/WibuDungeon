@@ -75,12 +75,15 @@ public class TrackingManager {
 
         TextDisplay hud = spawnHUD(player);
 
-        // Per-player visibility
-        for (Player online : Bukkit.getOnlinePlayers()) {
-            if (!online.equals(player)) {
-                online.hideEntity(plugin, hud);
+        // Per-player visibility — defer by 2 ticks so entity is tracked by clients first
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (hud.isDead()) return;
+            for (Player online : Bukkit.getOnlinePlayers()) {
+                if (!online.equals(player)) {
+                    online.hideEntity(plugin, hud);
+                }
             }
-        }
+        }, 2L);
 
         TrackingSession session = new TrackingSession(player.getUniqueId(), dungeonId, target, hud);
         activeSessions.put(player.getUniqueId(), session);
@@ -146,11 +149,15 @@ public class TrackingManager {
         if (display == null || display.isDead()) {
             display = spawnHUD(p);
             session.hudDisplay = display;
-            for (Player online : Bukkit.getOnlinePlayers()) {
-                if (!online.equals(p)) {
-                    online.hideEntity(plugin, display);
+            final TextDisplay newDisplay = display;
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                if (newDisplay.isDead()) return;
+                for (Player online : Bukkit.getOnlinePlayers()) {
+                    if (!online.equals(p)) {
+                        online.hideEntity(plugin, newDisplay);
+                    }
                 }
-            }
+            }, 2L);
         }
 
         // Arrival check
@@ -233,13 +240,19 @@ public class TrackingManager {
     }
 
     private TextDisplay spawnHUD(Player p) {
-        return p.getWorld().spawn(p.getEyeLocation(), TextDisplay.class, e -> {
+        // Spawn 2 blocks in front of the player so it's not culled by being too close
+        Location spawnLoc = p.getEyeLocation().add(p.getEyeLocation().getDirection().multiply(2));
+        return p.getWorld().spawn(spawnLoc, TextDisplay.class, e -> {
             e.setBillboard(Display.Billboard.CENTER);
             e.setBrightness(new Display.Brightness(15, 15));
             e.setTeleportDuration(2);
             e.setSeeThrough(true);
+            e.setShadowed(true);
             e.setBackgroundColor(Color.fromARGB(0, 0, 0, 0));
             e.setPersistent(false);
+            e.setViewRange(1.0f);
+            // Set initial text so client has content to render
+            e.text(MessageUtil.colorize("&f⇔\n&e..."));
             e.setTransformation(new Transformation(
                     new Vector3f(), new AxisAngle4f(),
                     new Vector3f((float) HUD_SCALE, (float) HUD_SCALE, (float) HUD_SCALE),
