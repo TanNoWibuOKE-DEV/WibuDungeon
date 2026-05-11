@@ -203,39 +203,58 @@ public class TrackingManager {
             }, 2L);
         }
 
-        // v1.0.9: Cross-world handling — show "Different World" HUD
-        boolean sameWorld = p.getWorld().getName().equals(
-                session.targetLocation.getWorld().getName());
-        if (!sameWorld) {
-            String worldName = session.targetLocation.getWorld().getName();
-            Location hudPos = eye.clone().add(eye.getDirection().normalize().multiply(HUD_FORWARD));
-            display.teleport(hudPos);
-            display.text(MessageUtil.colorize(
-                    "&e&l⚔ &fDungeon\n&c✘ World: &f" + worldName));
-            return;
-        }
+        // Cross-world: still do screen-space projection, handled in text display below
 
         Location targetCenter = session.targetLocation.clone();
         targetCenter.setY(targetCenter.getY() + 1.5);
-        double dist = eye.distance(targetCenter);
 
-        // Arrival check
-        if (dist <= ARRIVAL_DISTANCE) {
-            cleanupSession(p.getUniqueId());
-            MessageUtil.send(p, configManager.getPrefix() + "&a&l✔ You've reached the dungeon!");
-            spawnFirework(p.getLocation());
-            p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f);
-            return;
+        // Check if same world — can't calculate distance across worlds
+        boolean sameWorld = p.getWorld().getName().equals(
+                targetCenter.getWorld() != null ? targetCenter.getWorld().getName() : "");
+
+        double dist;
+        if (sameWorld) {
+            dist = eye.distance(targetCenter);
+
+            // Arrival check (same world only)
+            if (dist <= ARRIVAL_DISTANCE) {
+                cleanupSession(p.getUniqueId());
+                MessageUtil.send(p, configManager.getPrefix() + "&a&l✔ You've reached the dungeon!");
+                spawnFirework(p.getLocation());
+                p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f);
+                return;
+            }
+        } else {
+            dist = -1; // Cross-world marker
         }
 
         // Distance color
         String distColor;
-        if (dist <= 20) distColor = "&a";
-        else if (dist <= 50) distColor = "&e";
-        else if (dist <= 100) distColor = "&6";
-        else distColor = "&c";
+        String distStr;
+        if (dist < 0) {
+            distColor = "&c";
+            distStr = "???";
+        } else if (dist <= 20) { distColor = "&a"; distStr = (int) dist + "m"; }
+        else if (dist <= 50) { distColor = "&e"; distStr = (int) dist + "m"; }
+        else if (dist <= 100) { distColor = "&6"; distStr = (int) dist + "m"; }
+        else { distColor = "&c"; distStr = (int) dist + "m"; }
 
-        // === Waypoint-style screen-space projection ===
+        // World label
+        String targetWorld = session.targetLocation.getWorld() != null
+                ? session.targetLocation.getWorld().getName() : "?";
+        boolean crossWorld = !sameWorld;
+        String worldLine = crossWorld ? "\n&7" + targetWorld : "";
+
+        // Cross-world: show HUD fixed in front of player
+        if (crossWorld) {
+            Location hudPos = eye.clone().add(eye.getDirection().normalize().multiply(HUD_FORWARD));
+            display.teleport(hudPos);
+            display.text(MessageUtil.colorize(
+                    "&e&l⚔ &fPortal\n" + distColor + distStr + worldLine));
+            return;
+        }
+
+        // === Same world: Waypoint-style screen-space projection ===
         Vector forward = eye.getDirection().normalize();
         Vector targetVec = targetCenter.toVector();
         Vector toTarget = targetVec.clone().subtract(eye.toVector()).normalize();
@@ -246,7 +265,7 @@ public class TrackingManager {
             // Close & looking — show at actual position
             display.teleport(targetVec.toLocation(p.getWorld()));
             display.text(MessageUtil.colorize(
-                    "&e&l⚔ &fDungeon" + "\n" + distColor + (int) dist + "m"));
+                    "&e&l⚔ &fPortal" + "\n" + distColor + distStr));
         } else {
             Vector right = new Vector(-forward.getZ(), 0, forward.getX()).normalize();
             if (right.lengthSquared() < 0.01) right = new Vector(1, 0, 0);
@@ -281,7 +300,7 @@ public class TrackingManager {
 
             display.teleport(hudPos);
             display.text(MessageUtil.colorize(
-                    "&f" + icon + "\n" + distColor + (int) dist + "m"));
+                    "&f" + icon + "\n" + distColor + distStr));
         }
     }
 
@@ -299,18 +318,16 @@ public class TrackingManager {
     }
 
     private TextDisplay spawnHUD(Player p) {
-        // Spawn 2 blocks in front of the player so it's not culled by being too close
         Location spawnLoc = p.getEyeLocation().add(p.getEyeLocation().getDirection().multiply(2));
         return p.getWorld().spawn(spawnLoc, TextDisplay.class, e -> {
             e.setBillboard(Display.Billboard.CENTER);
-            e.setBrightness(new Display.Brightness(15, 15));
+            e.setBrightness(new Display.Brightness(15, 15));  // Full brightness always
             e.setTeleportDuration(2);
-            e.setSeeThrough(true);
-            e.setShadowed(true);
-            e.setBackgroundColor(Color.fromARGB(0, 0, 0, 0));
+            e.setSeeThrough(true);        // Visible through blocks
+            e.setShadowed(true);           // Text shadow for contrast
+            e.setBackgroundColor(Color.fromARGB(100, 0, 0, 0)); // Semi-transparent dark bg
             e.setPersistent(false);
-            e.setViewRange(1.0f);
-            // Set initial text so client has content to render
+            // Initial text
             e.text(MessageUtil.colorize("&f⇔\n&e..."));
             e.setTransformation(new Transformation(
                     new Vector3f(), new AxisAngle4f(),

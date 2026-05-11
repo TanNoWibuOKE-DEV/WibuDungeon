@@ -55,6 +55,7 @@ public class PortalListener implements Listener {
 
     /**
      * Auto-open GUI when player walks near a portal.
+     * v1.0.9: Skip if sneaking (shift), reduced range, removed premature markUsed.
      */
     @EventHandler(priority = EventPriority.NORMAL)
     public void onPlayerMove(PlayerMoveEvent event) {
@@ -64,6 +65,9 @@ public class PortalListener implements Listener {
         Player player = event.getPlayer();
         if (dungeonManager.isInDungeon(player.getUniqueId())) return;
 
+        // Don't auto-open if sneaking — allows walking past without triggering
+        if (player.isSneaking()) return;
+
         // Don't open if player already has an inventory open
         if (player.getOpenInventory().getType() != org.bukkit.event.inventory.InventoryType.CRAFTING) return;
 
@@ -72,12 +76,11 @@ public class PortalListener implements Listener {
         Long lastUse = portalCooldowns.get(player.getUniqueId());
         if (lastUse != null && System.currentTimeMillis() - lastUse < cooldownMs) return;
 
-        // Check proximity to any portal (3 block range covers full frame)
-        DungeonPortal portal = portalManager.getNearbyPortal(player.getLocation(), 3.0);
+        // Check proximity to any portal (2 block range — tighter to avoid spam)
+        DungeonPortal portal = portalManager.getNearbyPortal(player.getLocation(), 2.0);
         if (portal == null || portal.isExpired()) return;
 
         portalCooldowns.put(player.getUniqueId(), System.currentTimeMillis());
-        portalManager.markPortalUsed(portal.getPortalId()); // v1.0.6: mark portal as used
         joinGUI.open(player, portal);
     }
 
