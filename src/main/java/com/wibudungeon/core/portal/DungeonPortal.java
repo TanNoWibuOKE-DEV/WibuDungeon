@@ -77,10 +77,19 @@ public class DungeonPortal {
      */
     public void remove() {
         for (BlockDisplay display : displayEntities) {
-            if (display != null && !display.isDead()) display.remove();
+            if (display != null && !display.isDead()) {
+                // v1.0.9: Ensure chunk is loaded so remove() actually works
+                if (!display.getLocation().getChunk().isLoaded()) {
+                    display.getLocation().getChunk().load();
+                }
+                display.remove();
+            }
         }
         displayEntities.clear();
         if (interactionEntity != null && !interactionEntity.isDead()) {
+            if (!interactionEntity.getLocation().getChunk().isLoaded()) {
+                interactionEntity.getLocation().getChunk().load();
+            }
             interactionEntity.remove();
             interactionEntity = null;
         }

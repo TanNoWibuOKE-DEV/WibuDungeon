@@ -261,22 +261,25 @@ public class PortalManager {
         Iterator<Map.Entry<UUID, DungeonPortal>> it = activePortals.entrySet().iterator();
         while (it.hasNext()) {
             DungeonPortal portal = it.next().getValue();
-            if (portal.isExpired()) {
-                // v1.0.8 fix: Skip portals that are actively being used (player opened GUI)
-                // to prevent race condition where portal is removed before dungeon starts.
-                if (portal.isUsed()) continue;
 
-                // Full cleanup of all entities
-                portal.remove();
-                it.remove();
+            // v1.0.9: Also remove portals whose entities are already dead (chunk unload)
+            boolean shouldRemove = portal.isExpired() || !portal.isValid();
+            if (!shouldRemove) continue;
 
-                plugin.getLogger().info("Portal expired and removed: " + portal.getPortalId()
-                        + " (dungeon: " + portal.getDungeonId() + ", used: " + portal.isUsed() + ")");
+            // v1.0.8 fix: Skip portals that are actively being used (player opened GUI)
+            if (portal.isUsed() && !portal.isExpired()) continue;
 
-                if (configManager.isPortalAnnounce() && portal.getLocation().getWorld() != null) {
-                    for (Player p : portal.getLocation().getWorld().getPlayers()) {
-                        MessageUtil.send(p, configManager.getMessage("portal.expired"));
-                    }
+            // Full cleanup of all entities
+            portal.remove();
+            it.remove();
+
+            plugin.getLogger().info("Portal removed: " + portal.getPortalId()
+                    + " (dungeon: " + portal.getDungeonId()
+                    + ", expired: " + portal.isExpired() + ", used: " + portal.isUsed() + ")");
+
+            if (configManager.isPortalAnnounce() && portal.getLocation().getWorld() != null) {
+                for (Player p : portal.getLocation().getWorld().getPlayers()) {
+                    MessageUtil.send(p, configManager.getMessage("portal.expired"));
                 }
             }
         }
